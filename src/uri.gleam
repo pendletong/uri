@@ -1,0 +1,733 @@
+import gleam/bool
+import gleam/int
+import gleam/list.{Continue, Stop}
+import gleam/option.{type Option, None, Some}
+import gleam/result
+import gleam/string
+import gleam/uri
+
+pub type Uri {
+  Uri(
+    scheme: Option(String),
+    userinfo: Option(String),
+    host: Option(String),
+    port: Option(Int),
+    path: String,
+    query: Option(String),
+    fragment: Option(String),
+  )
+}
+
+pub const empty_uri = Uri(None, None, None, None, "", None, None)
+
+pub fn main() {
+  // parse("test://asd@test!te%20ste/a/b/c?a=31#asd") |> echo
+  // parse("test:/blah") |> echo
+  parse("foo://user:password@localhost") |> echo
+  uri.parse("foo://user:password@localhost") |> echo
+  // uri.parse("../../") |> echo
+}
+
+pub fn parse(uri: String) -> Result(Uri, Nil) {
+  case parse_scheme(uri) {
+    Ok(#(scheme, rest)) -> {
+      use #(rel_part, rest) <- result.try(parse_hier_part(rest))
+
+      use #(query, rest) <- result.try(parse_query(rest))
+
+      use #(fragment, rest) <- result.try(parse_fragment(rest))
+
+      case rest {
+        "" -> Ok(combine_uris([scheme, rel_part, query, fragment]))
+        _ -> Error(Nil)
+      }
+    }
+    Error(_) -> {
+      use #(rel_part, rest) <- result.try(parse_relative_part(uri))
+
+      use #(query, rest) <- result.try(parse_query(rest))
+
+      use #(fragment, rest) <- result.try(parse_fragment(rest))
+
+      case rest {
+        "" -> Ok(combine_uris([rel_part, query, fragment]))
+        _ -> Error(Nil)
+      }
+    }
+  }
+}
+
+fn parse_query(str: String) -> Result(#(Uri, String), Nil) {
+  case str {
+    "?" <> rest -> {
+      let #(query, rest) = get_multiple_optional(parse_query_fragment, rest)
+      Ok(#(Uri(..empty_uri, query: Some(query)), rest))
+    }
+    _ -> Ok(#(empty_uri, str))
+  }
+}
+
+fn parse_fragment(str: String) -> Result(#(Uri, String), Nil) {
+  case str {
+    "#" <> rest -> {
+      let #(fragment, rest) = get_multiple_optional(parse_query_fragment, rest)
+      Ok(#(Uri(..empty_uri, fragment: Some(fragment)), rest))
+    }
+    _ -> Ok(#(empty_uri, str))
+  }
+}
+
+fn parse_hier_part(str: String) -> Result(#(Uri, String), Nil) {
+  list.fold_until(
+    [parse_authority, parse_absolute, parse_rootless, parse_empty],
+    Error(Nil),
+    get_parser_fn(str),
+  )
+}
+
+fn parse_relative_part(str: String) -> Result(#(Uri, String), Nil) {
+  list.fold_until(
+    [parse_authority, parse_absolute, parse_noscheme, parse_empty],
+    Error(Nil),
+    get_parser_fn(str),
+  )
+}
+
+fn parse_absolute(str: String) -> Result(#(Uri, String), Nil) {
+  case str {
+    "/" <> rest -> {
+      use #(seg1, rest) <- result.try(do_parse_segment_nz(rest))
+
+      let #(segs, rest) =
+        get_multiple_optional(
+          fn(str) {
+            case str {
+              "/" <> rest -> {
+                do_parse_segment(rest, do_parse_pchar, "/")
+              }
+              _ -> Error(Nil)
+            }
+          },
+          rest,
+        )
+
+      Ok(#(Uri(None, None, None, None, "/" <> seg1 <> segs, None, None), rest))
+    }
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_rootless(str: String) -> Result(#(Uri, String), Nil) {
+  use #(seg1, rest) <- result.try(do_parse_segment_nz(str))
+
+  let #(segs, rest) =
+    get_multiple_optional(
+      fn(str) {
+        case str {
+          "/" <> rest -> {
+            do_parse_segment(rest, do_parse_pchar, "/")
+          }
+          _ -> Error(Nil)
+        }
+      },
+      rest,
+    )
+
+  Ok(#(Uri(None, None, None, None, seg1 <> segs, None, None), rest))
+}
+
+fn parse_noscheme(str: String) -> Result(#(Uri, String), Nil) {
+  use #(seg1, rest) <- result.try(do_parse_segment_nz_nc(str))
+
+  let #(segs, rest) =
+    get_multiple_optional(
+      fn(str) {
+        case str {
+          "/" <> rest -> {
+            do_parse_segment(rest, do_parse_pchar, "/")
+          }
+          _ -> Error(Nil)
+        }
+      },
+      rest,
+    )
+
+  Ok(#(Uri(None, None, None, None, seg1 <> segs, None, None), rest))
+}
+
+fn get_multiple_optional(opt_fn, str: String) {
+  case get_multiple(opt_fn, str) {
+    Error(_) -> #("", str)
+    Ok(r) -> r
+  }
+}
+
+fn parse_empty(str: String) -> Result(#(Uri, String), Nil) {
+  Ok(#(Uri(None, None, None, None, "", None, None), str))
+}
+
+fn parse_authority(str: String) -> Result(#(Uri, String), Nil) {
+  case str {
+    "//" <> rest -> {
+      parse_authority_part(rest)
+    }
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_authority_part(str: String) -> Result(#(Uri, String), Nil) {
+  let #(ui, rest) = case parse_userinfo(str, "") {
+    Ok(#(ui, rest)) -> #(Some(ui), rest)
+    Error(_) -> #(None, str)
+  }
+
+  use #(host, rest) <- result.try(parse_host(rest))
+
+  let #(port, rest) = case parse_port(rest) {
+    Ok(#("", rest)) -> #(None, rest)
+    Error(_) -> #(None, rest)
+    Ok(#(port, rest)) -> {
+      let assert Ok(port) = int.parse(port)
+      #(Some(port), rest)
+    }
+  }
+
+  let #(path, rest) = parse_abs_empty(rest)
+
+  Ok(#(Uri(None, ui, Some(host), port, path, None, None), rest))
+}
+
+fn parse_port(str: String) {
+  case str {
+    ":" <> rest -> {
+      Ok(parse_digits(rest, ""))
+    }
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_digits(str: String, digits: String) {
+  case parse_digit(str) {
+    Ok(#(d, rest)) -> {
+      parse_digits(rest, digits <> d)
+    }
+    Error(_) -> #(digits, str)
+  }
+}
+
+fn parse_host(str: String) {
+  list.fold_until(
+    [parse_ip_literal, parse_ipv4, parse_reg_name],
+    Error(Nil),
+    get_parser_fn(str),
+  )
+}
+
+fn parse_ip_literal(str: String) {
+  Error(Nil)
+}
+
+fn get_multiple(
+  to_run: fn(String) -> Result(#(String, String), Nil),
+  str: String,
+) -> Result(#(String, String), Nil) {
+  case do_get_multiple(to_run, str, "") {
+    Ok(#("", _)) | Error(Nil) -> Error(Nil)
+    Ok(#(r, rest)) -> Ok(#(r, rest))
+  }
+}
+
+fn do_get_multiple(
+  to_run: fn(String) -> Result(#(String, String), Nil),
+  str: String,
+  ret: String,
+) -> Result(#(String, String), Nil) {
+  case str {
+    "" -> Ok(#(ret, str))
+    _ ->
+      case to_run(str) {
+        Ok(#(r, rest)) -> do_get_multiple(to_run, rest, ret <> r)
+        Error(_) -> Ok(#(ret, str))
+      }
+  }
+}
+
+fn parse_query_fragment(str: String) {
+  list.fold_until(
+    [
+      do_parse_pchar,
+      fn(str: String) {
+        case str {
+          "/" as l <> rest | "?" as l <> rest -> Ok(#(l, rest))
+          _ -> Error(Nil)
+        }
+      },
+    ],
+    Error(Nil),
+    get_parser_fn(str),
+  )
+}
+
+fn parse_abs_empty(str: String) -> #(String, String) {
+  get_multiple_optional(
+    fn(str) {
+      case str {
+        "/" <> rest -> {
+          do_parse_segment(rest, do_parse_pchar, "/")
+        }
+        _ -> Error(Nil)
+      }
+    },
+    str,
+  )
+}
+
+fn do_parse_segment(
+  str: String,
+  char_fn,
+  segment: String,
+) -> Result(#(String, String), Nil) {
+  case char_fn(str) {
+    Error(Nil) | Ok(#("", _)) -> Ok(#(segment, str))
+    Ok(#(l, rest)) -> do_parse_segment(rest, char_fn, segment <> l)
+  }
+}
+
+fn do_parse_segment_nz(str: String) {
+  use #(char1, rest) <- result.try(do_parse_pchar(str))
+
+  use #(chars, rest) <- result.try(do_parse_segment(rest, do_parse_pchar, char1))
+
+  Ok(#(chars, rest))
+}
+
+fn do_parse_segment_nz_nc(str: String) {
+  use #(char1, rest) <- result.try(do_parse_pchar_nc(str))
+
+  use #(chars, rest) <- result.try(do_parse_segment(
+    rest,
+    do_parse_pchar_nc,
+    char1,
+  ))
+
+  Ok(#(chars, rest))
+}
+
+fn do_parse_pchar(str: String) {
+  list.fold_until(
+    [
+      parse_unreserved,
+      parse_pct_encoded,
+      parse_sub_delim,
+      fn(str: String) {
+        case str {
+          ":" as l <> rest | "@" as l <> rest -> Ok(#(l, rest))
+          _ -> Error(Nil)
+        }
+      },
+    ],
+    Error(Nil),
+    get_parser_fn(str),
+  )
+}
+
+fn do_parse_pchar_nc(str: String) {
+  list.fold_until(
+    [
+      parse_unreserved,
+      parse_pct_encoded,
+      parse_sub_delim,
+      fn(str: String) {
+        case str {
+          "@" as l <> rest -> Ok(#(l, rest))
+          _ -> Error(Nil)
+        }
+      },
+    ],
+    Error(Nil),
+    get_parser_fn(str),
+  )
+}
+
+fn parse_reg_name(str: String) {
+  // can't error
+
+  case do_parse_reg_name(str, "") {
+    Error(Nil) -> Ok(#("", str))
+    Ok(#(reg_name, rest)) -> Ok(#(reg_name, rest))
+  }
+}
+
+fn do_parse_reg_name(str: String, reg_name: String) {
+  case
+    list.fold_until(
+      [parse_unreserved, parse_pct_encoded, parse_sub_delim],
+      Error(Nil),
+      get_parser_fn(str),
+    )
+  {
+    Error(Nil) | Ok(#("", _)) -> Ok(#(reg_name, str))
+    Ok(#(l, rest)) -> do_parse_reg_name(rest, reg_name <> l)
+  }
+}
+
+fn parse_pct_encoded(str: String) {
+  case str {
+    "%" <> rest -> {
+      use #(hex1, rest) <- result.try(parse_hex_digit(rest))
+      use #(hex2, rest) <- result.try(parse_hex_digit(rest))
+
+      Ok(#("%" <> hex1 <> hex2, rest))
+    }
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_sub_delim(str: String) {
+  case str {
+    "!" as l <> rest
+    | "$" as l <> rest
+    | "&" as l <> rest
+    | "'" as l <> rest
+    | "(" as l <> rest
+    | ")" as l <> rest
+    | "*" as l <> rest
+    | "+" as l <> rest
+    | "," as l <> rest
+    | ";" as l <> rest
+    | "=" as l <> rest -> Ok(#(l, rest))
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_ipv4(str: String) {
+  use #(oct1, rest) <- result.try(parse_dec_octet(str))
+  use rest <- result.try(case rest {
+    "." <> rest -> Ok(rest)
+    _ -> Error(Nil)
+  })
+  use #(oct2, rest) <- result.try(parse_dec_octet(rest))
+  use rest <- result.try(case rest {
+    "." <> rest -> Ok(rest)
+    _ -> Error(Nil)
+  })
+  use #(oct3, rest) <- result.try(parse_dec_octet(rest))
+  use rest <- result.try(case rest {
+    "." <> rest -> Ok(rest)
+    _ -> Error(Nil)
+  })
+  use #(oct4, rest) <- result.try(parse_dec_octet(rest))
+  Ok(#(oct1 <> "." <> oct2 <> "." <> oct3 <> "." <> oct4, rest))
+}
+
+fn parse_dec_octet(str: String) -> Result(#(String, String), Nil) {
+  let matches = [
+    ["2", "5", "012345"],
+    ["2", "01234", "0123456789"],
+    ["1", "0123456789", "0123456789"],
+    ["123456789", "0123456789"],
+    ["0123456789"],
+  ]
+
+  list.fold_until(matches, Error(Nil), fn(_, chars) {
+    case
+      list.fold_until(chars, #("", str), fn(acc, charset) {
+        let #(octet, str) = acc
+        case string.pop_grapheme(str) {
+          Error(_) -> Stop(#("", ""))
+          Ok(#(char, rest)) -> {
+            case string.contains(charset, char) {
+              True -> Continue(#(octet <> char, rest))
+              False -> Stop(#("", ""))
+            }
+          }
+        }
+      })
+    {
+      #("", _) -> Continue(Error(Nil))
+      #(octet, rest) -> Stop(Ok(#(octet, rest)))
+    }
+  })
+}
+
+fn parse_userinfo(
+  str: String,
+  userinfo: String,
+) -> Result(#(String, String), Nil) {
+  case str {
+    "@" <> rest -> Ok(#(userinfo, rest))
+    "" -> Error(Nil)
+    _ -> {
+      use #(part, rest) <- result.try(list.fold_until(
+        [
+          parse_unreserved,
+          parse_pct_encoded,
+          parse_sub_delim,
+          fn(str: String) {
+            case str {
+              ":" as l <> rest -> Ok(#(l, rest))
+              _ -> Error(Nil)
+            }
+          },
+        ],
+        Error(Nil),
+        get_parser_fn(str),
+      ))
+      parse_userinfo(rest, userinfo <> part)
+    }
+  }
+}
+
+fn parse_scheme(str: String) -> Result(#(Uri, String), Nil) {
+  case parse_alpha(str) {
+    Ok(#(first, rest)) -> {
+      case do_parse_scheme(rest, first) {
+        Error(_) -> Error(Nil)
+        Ok(#(scheme, rest)) ->
+          Ok(#(Uri(Some(scheme), None, None, None, "", None, None), rest))
+      }
+    }
+    _ -> Error(Nil)
+  }
+}
+
+fn do_parse_scheme(
+  str: String,
+  scheme: String,
+) -> Result(#(String, String), Nil) {
+  case str {
+    ":" <> rest -> Ok(#(scheme, rest))
+    "" -> Error(Nil)
+    _ -> {
+      use #(part, rest) <- result.try(list.fold_until(
+        [
+          parse_alpha,
+          parse_digit,
+          fn(str) {
+            case str {
+              "+" as l <> rest | "-" as l <> rest | "." as l <> rest ->
+                Ok(#(l, rest))
+              _ -> Error(Nil)
+            }
+          },
+        ],
+        Error(Nil),
+        get_parser_fn(str),
+      ))
+      do_parse_scheme(rest, scheme <> part)
+    }
+  }
+}
+
+fn get_parser_fn(
+  str: String,
+) -> fn(a, fn(String) -> Result(b, c)) -> list.ContinueOrStop(Result(b, Nil)) {
+  fn(_, parse_fn) {
+    case parse_fn(str) {
+      Ok(r) -> Stop(Ok(r))
+      Error(_) -> Continue(Error(Nil))
+    }
+  }
+}
+
+fn parse_hex_digits(str, min, max) {
+  use <- bool.guard(when: min < 0 || max <= 0 || min > max, return: Error(Nil))
+  case
+    list.repeat("", max)
+    |> list.fold_until(Ok(#("", str, 0)), fn(acc, _) {
+      let assert Ok(#(hex, str, i)) = acc
+      case parse_hex_digit(str) {
+        Error(_) ->
+          case i < min {
+            True -> Stop(Error(Nil))
+            False -> Stop(Ok(#(hex, str, i)))
+          }
+        Ok(#(l, rest)) -> Continue(Ok(#(hex <> l, rest, i + 1)))
+      }
+    })
+  {
+    Error(_) -> Error(Nil)
+    Ok(#(hex, str, _)) -> Ok(#(hex, str))
+  }
+}
+
+fn parse_hex_digit(str) {
+  case str {
+    "0" as l <> rest
+    | "1" as l <> rest
+    | "2" as l <> rest
+    | "3" as l <> rest
+    | "4" as l <> rest
+    | "5" as l <> rest
+    | "6" as l <> rest
+    | "7" as l <> rest
+    | "8" as l <> rest
+    | "9" as l <> rest
+    | "a" as l <> rest
+    | "b" as l <> rest
+    | "c" as l <> rest
+    | "d" as l <> rest
+    | "e" as l <> rest
+    | "f" as l <> rest
+    | "A" as l <> rest
+    | "B" as l <> rest
+    | "C" as l <> rest
+    | "D" as l <> rest
+    | "E" as l <> rest
+    | "F" as l <> rest -> Ok(#(l, rest))
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_digit(str: String) -> Result(#(String, String), Nil) {
+  case str {
+    "0" as l <> rest
+    | "1" as l <> rest
+    | "2" as l <> rest
+    | "3" as l <> rest
+    | "4" as l <> rest
+    | "5" as l <> rest
+    | "6" as l <> rest
+    | "7" as l <> rest
+    | "8" as l <> rest
+    | "9" as l <> rest -> Ok(#(l, rest))
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_alpha(str: String) -> Result(#(String, String), Nil) {
+  case str {
+    "a" as l <> rest
+    | "b" as l <> rest
+    | "c" as l <> rest
+    | "d" as l <> rest
+    | "e" as l <> rest
+    | "f" as l <> rest
+    | "g" as l <> rest
+    | "h" as l <> rest
+    | "i" as l <> rest
+    | "j" as l <> rest
+    | "k" as l <> rest
+    | "l" as l <> rest
+    | "m" as l <> rest
+    | "n" as l <> rest
+    | "o" as l <> rest
+    | "p" as l <> rest
+    | "q" as l <> rest
+    | "r" as l <> rest
+    | "s" as l <> rest
+    | "t" as l <> rest
+    | "u" as l <> rest
+    | "v" as l <> rest
+    | "w" as l <> rest
+    | "x" as l <> rest
+    | "y" as l <> rest
+    | "z" as l <> rest
+    | "A" as l <> rest
+    | "B" as l <> rest
+    | "C" as l <> rest
+    | "D" as l <> rest
+    | "E" as l <> rest
+    | "F" as l <> rest
+    | "G" as l <> rest
+    | "H" as l <> rest
+    | "I" as l <> rest
+    | "J" as l <> rest
+    | "K" as l <> rest
+    | "L" as l <> rest
+    | "M" as l <> rest
+    | "N" as l <> rest
+    | "O" as l <> rest
+    | "P" as l <> rest
+    | "Q" as l <> rest
+    | "R" as l <> rest
+    | "S" as l <> rest
+    | "T" as l <> rest
+    | "U" as l <> rest
+    | "V" as l <> rest
+    | "W" as l <> rest
+    | "X" as l <> rest
+    | "Y" as l <> rest
+    | "Z" as l <> rest -> Ok(#(l, rest))
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_unreserved(str: String) -> Result(#(String, String), Nil) {
+  list.fold_until(
+    [
+      parse_alpha,
+      parse_digit,
+      fn(str) {
+        case str {
+          "_" as l <> rest
+          | "-" as l <> rest
+          | "." as l <> rest
+          | "~" as l <> rest -> Ok(#(l, rest))
+          _ -> Error(Nil)
+        }
+      },
+    ],
+    Error(Nil),
+    get_parser_fn(str),
+  )
+}
+
+fn combine_uris(uris: List(Uri)) -> Uri {
+  list.fold(uris, Uri(None, None, None, None, "", None, None), fn(acc, uri) {
+    let acc = case uri {
+      Uri(Some(scheme), _, _, _, _, _, _) -> Uri(..acc, scheme: Some(scheme))
+      _ -> acc
+    }
+    let acc = case uri {
+      Uri(_, Some(userinfo), _, _, _, _, _) ->
+        Uri(..acc, userinfo: Some(userinfo))
+      _ -> acc
+    }
+    let acc = case uri {
+      Uri(_, _, Some(host), _, _, _, _) -> Uri(..acc, host: Some(host))
+      _ -> acc
+    }
+    let acc = case uri {
+      Uri(_, _, _, Some(port), _, _, _) -> Uri(..acc, port: Some(port))
+      _ -> acc
+    }
+    let acc = case uri {
+      Uri(_, _, _, _, path, _, _) if path != "" -> Uri(..acc, path: path)
+      _ -> acc
+    }
+    let acc = case uri {
+      Uri(_, _, _, _, _, Some(query), _) -> Uri(..acc, query: Some(query))
+      _ -> acc
+    }
+    case uri {
+      Uri(_, _, _, _, _, _, Some(fragment)) ->
+        Uri(..acc, fragment: Some(fragment))
+      _ -> acc
+    }
+  })
+}
+
+pub fn to_uri(uri: Uri) -> uri.Uri {
+  uri.Uri(
+    uri.scheme,
+    uri.userinfo,
+    uri.host,
+    uri.port,
+    uri.path,
+    uri.query,
+    uri.fragment,
+  )
+}
+
+pub fn from_uri(uri: uri.Uri) -> Uri {
+  Uri(
+    uri.scheme,
+    uri.userinfo,
+    uri.host,
+    uri.port,
+    uri.path,
+    uri.query,
+    uri.fragment,
+  )
+}
