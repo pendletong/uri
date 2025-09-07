@@ -1,3 +1,4 @@
+import gleam/list
 import gleam/option.{None, Some}
 import gleeunit/should
 import startest.{describe, it}
@@ -1094,6 +1095,117 @@ pub fn normalise_tests() {
     }),
   ])
 }
+
+pub fn to_string_tests() {
+  describe("to_string test", [
+    it("simple test", fn() {
+      let test_uri =
+        types.Uri(
+          Some("https"),
+          Some("weebl:bob"),
+          Some("example.com"),
+          Some(1234),
+          "/path",
+          Some("query=true"),
+          Some("fragment"),
+        )
+      uri.to_string(test_uri)
+      |> should.equal(
+        "https://weebl:bob@example.com:1234/path?query=true#fragment",
+      )
+    }),
+    it("path only", fn() {
+      types.Uri(..types.empty_uri, path: "/")
+      |> uri.to_string
+      |> should.equal("/")
+      types.Uri(..types.empty_uri, path: "/blah")
+      |> uri.to_string
+      |> should.equal("/blah")
+      types.Uri(..types.empty_uri, userinfo: Some("user"), path: "/blah")
+      |> uri.to_string
+      |> should.equal("/blah")
+      types.Uri(..types.empty_uri, path: "")
+      |> uri.to_string
+      |> should.equal("")
+    }),
+  ])
+}
+
+pub fn equivalence_tests() {
+  describe("equivalence tests", [
+    it("equal", fn() {
+      let uri1 = uri.parse("http://example.com") |> should.be_ok
+      let uri2 = uri.parse("HTTP://EXAMPLE.COM") |> should.be_ok
+      uri.are_equivalent(uri1, uri2) |> should.be_true
+
+      let uri1 = uri.parse("http://example.com") |> should.be_ok
+      let uri2 = uri.parse("HTTP://EX%41MPLE.COM") |> should.be_ok |> echo
+      uri.are_equivalent(uri1, uri2) |> should.be_true
+
+      let uri1 = uri.parse("http://example.com/a/b/c") |> should.be_ok
+      let uri2 =
+        uri.parse("HTTP://EXaMPLE.COM/a/d/../b/e/../c") |> should.be_ok |> echo
+      uri.are_equivalent(uri1, uri2) |> should.be_true
+
+      let uri1 = uri.parse("http://example.com/a/b/c") |> should.be_ok
+      let uri2 =
+        uri.parse("HTTP://EXaMPLE.COM/a/../../../../a/b/e/../c")
+        |> should.be_ok
+        |> echo
+      uri.are_equivalent(uri1, uri2) |> should.be_true
+    }),
+  ])
+}
+
+pub fn percent_encode_tests() {
+  describe("percent encoding", [
+    it("encoding", fn() {
+      percent_codec_fixtures
+      |> list.map(fn(t) {
+        let #(a, b) = t
+        uri.percent_encode(a)
+        |> should.equal(b)
+      })
+      Nil
+    }),
+    it("decoding", fn() {
+      percent_codec_fixtures
+      |> list.map(fn(t) {
+        let #(a, b) = t
+        uri.percent_decode(b)
+        |> should.equal(Ok(a))
+      })
+      Nil
+    }),
+  ])
+}
+
+const percent_codec_fixtures = [
+  #(" ", "%20"),
+  #(",", "%2C"),
+  #(";", "%3B"),
+  #(":", "%3A"),
+  #("!", "!"),
+  #("?", "%3F"),
+  #("'", "'"),
+  #("(", "("),
+  #(")", ")"),
+  #("[", "%5B"),
+  #("@", "%40"),
+  #("/", "%2F"),
+  #("\\", "%5C"),
+  #("&", "%26"),
+  #("#", "%23"),
+  #("=", "%3D"),
+  #("~", "~"),
+  #("ñ", "%C3%B1"),
+  #("-", "-"),
+  #("_", "_"),
+  #(".", "."),
+  #("*", "*"),
+  #("+", "+"),
+  #("100% great+fun", "100%25%20great+fun"),
+]
 // gleeunit test functions end in `_test`
 // pub fn uri_test() {
 //   match("uri:")
