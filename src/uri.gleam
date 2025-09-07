@@ -20,14 +20,6 @@ pub type Uri {
 
 pub const empty_uri = Uri(None, None, None, None, "", None, None)
 
-pub fn main() {
-  // parse("test://asd@test!te%20ste/a/b/c?a=31#asd") |> echo
-  // parse("test:/blah") |> echo
-  parse("foo://user:password@localhost") |> echo
-  uri.parse("foo://user:password@localhost") |> echo
-  // uri.parse("../../") |> echo
-}
-
 pub fn parse(uri: String) -> Result(Uri, Nil) {
   case parse_scheme(uri) {
     Ok(#(scheme, rest)) -> {
@@ -96,22 +88,26 @@ fn parse_relative_part(str: String) -> Result(#(Uri, String), Nil) {
 fn parse_absolute(str: String) -> Result(#(Uri, String), Nil) {
   case str {
     "/" <> rest -> {
-      use #(seg1, rest) <- result.try(do_parse_segment_nz(rest))
+      let assert Ok(#(seg, rest)) =
+        parse_optional(rest, parse_this_then(
+          [
+            do_parse_segment_nz,
+            get_multiple_optional_result(
+              fn(str) {
+                case str {
+                  "/" <> rest -> {
+                    do_parse_segment(rest, do_parse_pchar, "/")
+                  }
+                  _ -> Error(Nil)
+                }
+              },
+              _,
+            ),
+          ],
+          _,
+        ))
 
-      let #(segs, rest) =
-        get_multiple_optional(
-          fn(str) {
-            case str {
-              "/" <> rest -> {
-                do_parse_segment(rest, do_parse_pchar, "/")
-              }
-              _ -> Error(Nil)
-            }
-          },
-          rest,
-        )
-
-      Ok(#(Uri(None, None, None, None, "/" <> seg1 <> segs, None, None), rest))
+      Ok(#(Uri(None, None, None, None, "/" <> seg, None, None), rest))
     }
     _ -> Error(Nil)
   }
@@ -153,6 +149,17 @@ fn parse_noscheme(str: String) -> Result(#(Uri, String), Nil) {
     )
 
   Ok(#(Uri(None, None, None, None, seg1 <> segs, None, None), rest))
+}
+
+fn parse_optional(str, opt_fn) {
+  case opt_fn(str) {
+    Error(Nil) -> Ok(#("", str))
+    Ok(r) -> Ok(r)
+  }
+}
+
+fn get_multiple_optional_result(opt_fn, str: String) {
+  get_multiple_optional(opt_fn, str) |> Ok
 }
 
 fn get_multiple_optional(opt_fn, str: String) {
@@ -224,6 +231,149 @@ fn parse_host(str: String) {
 }
 
 fn parse_ip_literal(str: String) {
+  case str {
+    "[" <> rest -> {
+      use #(ip, rest) <- result.try(list.fold_until(
+        [parse_ipv6, parse_ipfuture],
+        Error(Nil),
+        get_parser_fn(rest),
+      ))
+      case rest {
+        "]" <> rest -> Ok(#(ip, rest))
+        _ -> Error(Nil)
+      }
+    }
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_ipv6(str: String) {
+  list.fold_until(
+    [
+      parse_this_then([parse_min_max(_, 6, 6, parse_h16_colon), parse_ls32], _),
+      parse_this_then(
+        [parse_colons, parse_min_max(_, 5, 5, parse_h16_colon), parse_ls32],
+        _,
+      ),
+      parse_this_then(
+        [
+          parse_optional(_, parse_h16),
+          parse_colons,
+          parse_min_max(_, 4, 4, parse_h16_colon),
+          parse_ls32,
+        ],
+        _,
+      ),
+      parse_this_then(
+        [
+          parse_optional(_, parse_this_then([parse_h16s(_, 1), parse_h16], _)),
+          parse_colons,
+          parse_min_max(_, 3, 3, parse_h16_colon),
+          parse_ls32,
+        ],
+        _,
+      ),
+      parse_this_then(
+        [
+          parse_optional(_, parse_this_then([parse_h16s(_, 2), parse_h16], _)),
+          parse_colons,
+          parse_min_max(_, 2, 2, parse_h16_colon),
+          parse_ls32,
+        ],
+        _,
+      ),
+      parse_this_then(
+        [
+          parse_optional(_, parse_this_then([parse_h16s(_, 3), parse_h16], _)),
+          parse_colons,
+          parse_min_max(_, 1, 1, parse_h16_colon),
+          parse_ls32,
+        ],
+        _,
+      ),
+      parse_this_then(
+        [
+          parse_optional(_, parse_this_then([parse_h16s(_, 4), parse_h16], _)),
+          parse_colons,
+          parse_ls32,
+        ],
+        _,
+      ),
+      parse_this_then(
+        [
+          parse_optional(_, parse_this_then([parse_h16s(_, 5), parse_h16], _)),
+          parse_colons,
+          parse_h16,
+        ],
+        _,
+      ),
+      parse_this_then(
+        [
+          parse_optional(_, parse_this_then([parse_h16s(_, 6), parse_h16], _)),
+          parse_colons,
+        ],
+        _,
+      ),
+    ],
+    Error(Nil),
+    get_parser_fn(str),
+  )
+}
+
+fn parse_h16s(str: String, max) {
+  parse_min_max(str, 0, max, parse_h16_colon)
+}
+
+fn parse_colons(str: String) {
+  case str {
+    "::" <> rest -> Ok(#("::", rest))
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_this_then(
+  parsers: List(fn(String) -> Result(#(String, String), Nil)),
+  str: String,
+) {
+  list.fold_until(parsers, Ok(#("", str)), fn(acc, parser) {
+    let assert Ok(#(res, str)) = acc
+    case parser(str) {
+      Ok(#(res2, rest)) -> {
+        Continue(Ok(#(res <> res2, rest)))
+      }
+      Error(Nil) -> Stop(Error(Nil))
+    }
+  })
+}
+
+fn parse_ls32(str: String) -> Result(#(String, String), Nil) {
+  list.fold_until([parse_h16_pair, parse_ipv4], Error(Nil), get_parser_fn(str))
+}
+
+fn parse_h16_pair(str: String) {
+  use #(h16a, rest) <- result.try(parse_h16(str))
+  case rest {
+    ":" <> rest -> {
+      use #(h16b, rest) <- result.try(parse_h16(rest))
+      Ok(#(h16a <> ":" <> h16b, rest))
+    }
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_h16(str: String) {
+  parse_hex_digits(str, 1, 4)
+}
+
+fn parse_h16_colon(str: String) {
+  use #(h16, rest) <- result.try(parse_h16(str))
+  case rest {
+    ":" <> rest -> Ok(#(h16 <> ":", rest))
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_ipfuture(str: String) {
   Error(Nil)
 }
 
@@ -530,13 +680,13 @@ fn get_parser_fn(
   }
 }
 
-fn parse_hex_digits(str, min, max) {
+fn parse_min_max(str, min, max, parse_fn) {
   use <- bool.guard(when: min < 0 || max <= 0 || min > max, return: Error(Nil))
   case
     list.repeat("", max)
     |> list.fold_until(Ok(#("", str, 0)), fn(acc, _) {
       let assert Ok(#(hex, str, i)) = acc
-      case parse_hex_digit(str) {
+      case parse_fn(str) {
         Error(_) ->
           case i < min {
             True -> Stop(Error(Nil))
@@ -549,6 +699,10 @@ fn parse_hex_digits(str, min, max) {
     Error(_) -> Error(Nil)
     Ok(#(hex, str, _)) -> Ok(#(hex, str))
   }
+}
+
+fn parse_hex_digits(str, min, max) {
+  parse_min_max(str, min, max, parse_hex_digit)
 }
 
 fn parse_hex_digit(str) {
