@@ -1,7 +1,7 @@
 import gleam/option.{None, Some}
 import gleeunit/should
 import startest.{describe, it}
-import types.{Uri}
+import types.{Uri, empty_uri}
 import uri
 
 pub fn main() {
@@ -892,6 +892,205 @@ pub fn merge_tests() {
       uri.merge(uri1, uri2)
       |> echo
       |> should.equal(uri.parse("http://google.com/weebl/bob?query1"))
+    }),
+  ])
+}
+
+pub fn more_merge_tests() {
+  describe("rfc merge tests", [
+    it("normal examples", fn() {
+      let base = uri.parse("http://a/b/c/d;p?q") |> should.be_ok
+
+      let rel = uri.parse("g:h") |> should.be_ok
+      uri.merge(base, rel) |> should.be_ok |> should.equal(rel)
+      let rel = uri.parse("g") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g") |> should.be_ok)
+      let rel = uri.parse("./g") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g") |> should.be_ok)
+      let rel = uri.parse("g/") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g/") |> should.be_ok)
+      let rel = uri.parse("/g") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/g") |> should.be_ok)
+      let rel = uri.parse("//g") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://g") |> should.be_ok)
+      let rel = uri.parse("?y") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/d;p?y") |> should.be_ok)
+      let rel = uri.parse("g?y") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g?y") |> should.be_ok)
+      let rel = uri.parse("#s") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/d;p?q#s") |> should.be_ok)
+      let rel = uri.parse("g#s") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g#s") |> should.be_ok)
+      let rel = uri.parse("g?y#s") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g?y#s") |> should.be_ok)
+      let rel = uri.parse(";x") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/;x") |> should.be_ok)
+      let rel = uri.parse("g;x") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g;x") |> should.be_ok)
+      let rel = uri.parse("g;x?y#s") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g;x?y#s") |> should.be_ok)
+      let rel = uri.parse("") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/d;p?q") |> should.be_ok)
+      let rel = uri.parse(".") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/") |> should.be_ok)
+      let rel = uri.parse("./") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/") |> should.be_ok)
+      let rel = uri.parse("..") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/") |> should.be_ok)
+      let rel = uri.parse("../") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/") |> should.be_ok)
+      let rel = uri.parse("../g") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/g") |> should.be_ok)
+      let rel = uri.parse("../..") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/") |> should.be_ok)
+      let rel = uri.parse("../../") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/") |> should.be_ok)
+      let rel = uri.parse("../../g") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/g") |> should.be_ok)
+    }),
+  ])
+}
+
+pub fn normalise_tests() {
+  describe("normalise", [
+    it("basic normalise", fn() {
+      uri.parse("/a/b/c/./../../g")
+      |> should.be_ok
+      |> uri.normalise
+      |> should.equal(Uri(..empty_uri, path: "/a/g"))
+      uri.parse("mid/content=5/../6")
+      |> should.be_ok
+      |> uri.normalise
+      |> should.equal(Uri(..empty_uri, path: "mid/6"))
+    }),
+    it("abnormal examples", fn() {
+      let base = uri.parse("http://a/b/c/d;p?q") |> should.be_ok
+
+      let rel = uri.parse("../../../g") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/g") |> should.be_ok)
+      let rel = uri.parse("../../../../g") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/g") |> should.be_ok)
+      let rel = uri.parse("/./g") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/g") |> should.be_ok)
+      let rel = uri.parse("/../g") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/g") |> should.be_ok)
+      let rel = uri.parse("g.") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g.") |> should.be_ok)
+      let rel = uri.parse(".g") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/.g") |> should.be_ok)
+      let rel = uri.parse("g..") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g..") |> should.be_ok)
+      let rel = uri.parse("..g") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/..g") |> should.be_ok)
+    }),
+    it("weird examples", fn() {
+      let base = uri.parse("http://a/b/c/d;p?q") |> should.be_ok
+
+      let rel = uri.parse("./../g") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/g") |> should.be_ok)
+      let rel = uri.parse("./g/.") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g/") |> should.be_ok)
+      let rel = uri.parse("g/./h") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g/h") |> should.be_ok)
+      let rel = uri.parse("g/../h") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/h") |> should.be_ok)
+      let rel = uri.parse("g;x=1/./y") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g;x=1/y") |> should.be_ok)
+      let rel = uri.parse("g;x=1/../y") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/y") |> should.be_ok)
+    }),
+
+    it("weird fragment examples", fn() {
+      let base = uri.parse("http://a/b/c/d;p?q") |> should.be_ok
+
+      let rel = uri.parse("g?y/./x") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g?y/./x") |> should.be_ok)
+      let rel = uri.parse("g?y/../x") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g?y/../x") |> should.be_ok)
+      let rel = uri.parse("g#s/./x") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g#s/./x") |> should.be_ok)
+      let rel = uri.parse("g#s/../x") |> should.be_ok
+      uri.merge(base, rel)
+      |> should.be_ok
+      |> should.equal(uri.parse("http://a/b/c/g#s/../x") |> should.be_ok)
     }),
   ])
 }
