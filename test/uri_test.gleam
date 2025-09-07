@@ -802,6 +802,99 @@ pub fn parse_failure_tests() {
     }),
   ])
 }
+
+pub fn merge_tests() {
+  describe("merging", [
+    it("relative merge", fn() {
+      let uri1 = uri.parse("/relative") |> should.be_ok
+      let uri2 = uri.parse("") |> should.be_ok
+      uri.merge(uri1, uri2) |> should.be_error
+    }),
+    it("simple merge", fn() {
+      let uri1 = uri.parse("http://google.com/weebl") |> should.be_ok
+      let uri2 = uri.parse("http://example.com/baz") |> should.be_ok
+      uri.merge(uri1, uri2) |> should.equal(uri.parse("http://example.com/baz"))
+    }),
+    it("segments merge", fn() {
+      let uri1 = uri.parse("http://google.com/weebl") |> should.be_ok
+      let uri2 =
+        uri.parse("http://example.com/.././bob/../../baz") |> should.be_ok
+      uri.merge(uri1, uri2) |> should.equal(uri.parse("http://example.com/baz"))
+    }),
+    it("base with authority merge", fn() {
+      let uri1 = uri.parse("http://google.com/weebl") |> should.be_ok
+      let uri2 = uri.parse("//example.com/baz") |> should.be_ok
+      uri.merge(uri1, uri2) |> should.equal(uri.parse("http://example.com/baz"))
+    }),
+    it("base with authority segments merge", fn() {
+      let uri1 = uri.parse("http://google.com/weebl") |> should.be_ok
+      let uri2 =
+        uri.parse("//example.com/.././bob/../../../baz") |> should.be_ok
+      uri.merge(uri1, uri2) |> should.equal(uri.parse("http://example.com/baz"))
+    }),
+    it("base with absolute merge", fn() {
+      let uri1 = uri.parse("http://google.com/weebl/eh") |> should.be_ok
+      let uri2 = uri.parse("/baz") |> should.be_ok
+      uri.merge(uri1, uri2) |> should.equal(uri.parse("http://google.com/baz"))
+    }),
+    it("base with relative merge", fn() {
+      let uri1 = uri.parse("http://google.com/weebl/eh") |> should.be_ok
+      let uri2 = uri.parse("baz") |> should.be_ok
+      uri.merge(uri1, uri2)
+      |> echo
+      |> should.equal(uri.parse("http://google.com/weebl/baz"))
+      let uri1 = uri.parse("http://google.com/weebl/") |> should.be_ok
+      let uri2 = uri.parse("baz") |> should.be_ok
+      uri.merge(uri1, uri2)
+      |> echo
+      |> should.equal(uri.parse("http://google.com/weebl/baz"))
+      let uri1 = uri.parse("http://google.com") |> should.be_ok
+      let uri2 = uri.parse("baz") |> should.be_ok
+      uri.merge(uri1, uri2)
+      |> echo
+      |> should.equal(uri.parse("http://google.com/baz"))
+    }),
+    it("base with relative segments merge", fn() {
+      let uri1 = uri.parse("http://google.com") |> should.be_ok
+      let uri2 = uri.parse("/.././bob/../../../baz") |> should.be_ok
+      uri.merge(uri1, uri2)
+      |> echo
+      |> should.equal(uri.parse("http://google.com/baz"))
+    }),
+    it("base with empty uri merge", fn() {
+      let uri1 = uri.parse("http://google.com/weebl/bob") |> should.be_ok
+      let uri2 = uri.parse("") |> should.be_ok
+      uri.merge(uri1, uri2)
+      |> echo
+      |> should.equal(uri.parse("http://google.com/weebl/bob"))
+    }),
+
+    it("base with fragment merge", fn() {
+      let uri1 = uri.parse("http://google.com/weebl/bob") |> should.be_ok
+      let uri2 = uri.parse("#fragment") |> should.be_ok
+      uri.merge(uri1, uri2)
+      |> echo
+      |> should.equal(uri.parse("http://google.com/weebl/bob#fragment"))
+    }),
+    it("base with query merge", fn() {
+      let uri1 = uri.parse("http://google.com/weebl/bob") |> should.be_ok
+      let uri2 = uri.parse("?query") |> should.be_ok
+      uri.merge(uri1, uri2)
+      |> echo
+      |> should.equal(uri.parse("http://google.com/weebl/bob?query"))
+      let uri1 = uri.parse("http://google.com/weebl/bob?query1") |> should.be_ok
+      let uri2 = uri.parse("?query2") |> should.be_ok
+      uri.merge(uri1, uri2)
+      |> echo
+      |> should.equal(uri.parse("http://google.com/weebl/bob?query2"))
+      let uri1 = uri.parse("http://google.com/weebl/bob?query1") |> should.be_ok
+      let uri2 = uri.parse("") |> should.be_ok
+      uri.merge(uri1, uri2)
+      |> echo
+      |> should.equal(uri.parse("http://google.com/weebl/bob?query1"))
+    }),
+  ])
+}
 // gleeunit test functions end in `_test`
 // pub fn uri_test() {
 //   match("uri:")

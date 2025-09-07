@@ -39,6 +39,67 @@ pub fn to_string(uri: Uri) -> String {
   string.concat(parts)
 }
 
+pub fn merge(base: Uri, relative: Uri) -> Result(Uri, Nil) {
+  use <- bool.guard(when: base.scheme == None, return: Error(Nil))
+  let uri = case relative.scheme {
+    Some(_) -> {
+      Uri(..relative, path: remove_dot_segments(relative.path))
+    }
+    None -> {
+      let scheme = base.scheme
+      case relative.host, relative.port, relative.userinfo {
+        Some(_), _, _ | _, Some(_), _ | _, _, Some(_) -> {
+          Uri(..relative, scheme:, path: remove_dot_segments(relative.path))
+        }
+        _, _, _ -> {
+          case relative.path {
+            "" -> {
+              let query = case relative.query {
+                Some(_) -> relative.query
+                _ -> base.query
+              }
+              Uri(..base, query:)
+            }
+            "/" <> _ -> {
+              Uri(
+                ..base,
+                path: remove_dot_segments(relative.path),
+                query: relative.query,
+              )
+            }
+            _ -> {
+              let path = merge_paths(base, relative)
+              Uri(
+                ..base,
+                path: remove_dot_segments(path),
+                query: relative.query,
+              )
+            }
+          }
+        }
+      }
+    }
+  }
+
+  Uri(..uri, fragment: relative.fragment) |> Ok
+}
+
+fn has_authority(uri: Uri) -> Bool {
+  case uri.host, uri.userinfo, uri.port {
+    Some(_), _, _ | _, Some(_), _ | _, _, Some(_) -> True
+    _, _, _ -> False
+  }
+}
+
+fn merge_paths(base: Uri, relative: Uri) -> String {
+  case has_authority(base), base.path {
+    True, "" -> "/" <> relative.path
+    _, _ -> {
+      remove_segment(base.path) <> "/" <> relative.path
+    }
+  }
+}
+
 pub fn normalize(uri: Uri) -> Uri {
   normalise(uri)
 }
@@ -51,28 +112,28 @@ pub fn normalise(uri: Uri) -> Uri {
   let port = uri.port
   let host =
     uri.host |> option.map(string.lowercase) |> option.map(percent_normaliser)
-  let path = uri.path |> percent_normaliser |> normalise_path
+  let path = uri.path |> percent_normaliser |> remove_dot_segments
   let query = uri.query |> option.map(percent_normaliser)
   let fragment = uri.fragment |> option.map(percent_normaliser)
 
   Uri(scheme, userinfo, host, port, path, query, fragment)
 }
 
-fn normalise_path(path: String) -> String {
-  do_normalise_path(path, "")
+fn remove_dot_segments(path: String) -> String {
+  do_remove_dot_segments(path, "")
 }
 
-fn do_normalise_path(path: String, acc: String) -> String {
+fn do_remove_dot_segments(path: String, acc: String) -> String {
   case path {
-    "../" <> rest | "./" <> rest -> do_normalise_path(rest, acc)
-    "/./" <> rest -> do_normalise_path("/" <> rest, acc)
-    "/." -> do_normalise_path("/", acc)
-    "/../" <> rest -> do_normalise_path("/" <> rest, remove_segment(acc))
-    "/.." -> do_normalise_path("/", remove_segment(acc))
+    "../" <> rest | "./" <> rest -> do_remove_dot_segments(rest, acc)
+    "/./" <> rest -> do_remove_dot_segments("/" <> rest, acc)
+    "/." -> acc <> "/"
+    "/../" <> rest -> do_remove_dot_segments("/" <> rest, remove_segment(acc))
+    "/.." -> remove_segment(acc) <> "/"
     "." | ".." | "" -> acc
     _ -> {
       let assert Ok(#(char, rest)) = string.pop_grapheme(path)
-      do_normalise_path(rest, acc <> char)
+      do_remove_dot_segments(rest, acc <> char)
     }
   }
 }
