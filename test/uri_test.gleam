@@ -1,7 +1,8 @@
 import gleam/option.{None, Some}
 import gleeunit/should
 import startest.{describe, it}
-import uri.{Uri}
+import types.{Uri}
+import uri
 
 pub fn main() {
   startest.run(startest.default_config())
@@ -10,26 +11,26 @@ pub fn main() {
 pub fn parse_scheme_tests() {
   describe("scheme parsing", [
     it("simple parse", fn() {
-      uri.parse("") |> should.equal(Ok(uri.empty_uri))
+      uri.parse("") |> should.equal(Ok(types.empty_uri))
       uri.parse("foo")
-      |> should.equal(Ok(Uri(..uri.empty_uri, path: "foo")))
+      |> should.equal(Ok(Uri(..types.empty_uri, path: "foo")))
       uri.parse("foo:")
-      |> should.equal(Ok(Uri(..uri.empty_uri, scheme: Some("foo"))))
+      |> should.equal(Ok(Uri(..types.empty_uri, scheme: Some("foo"))))
       uri.parse("foo:bar:nisse")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, scheme: Some("foo"), path: "bar:nisse"),
+        Uri(..types.empty_uri, scheme: Some("foo"), path: "bar:nisse"),
       ))
       uri.parse("foo://")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, scheme: Some("foo"), host: Some("")),
+        Uri(..types.empty_uri, scheme: Some("foo"), host: Some("")),
       ))
       uri.parse("foo:///")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, scheme: Some("foo"), host: Some(""), path: "/"),
+        Uri(..types.empty_uri, scheme: Some("foo"), host: Some(""), path: "/"),
       ))
       uri.parse("foo:////")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, scheme: Some("foo"), host: Some(""), path: "//"),
+        Uri(..types.empty_uri, scheme: Some("foo"), host: Some(""), path: "//"),
       ))
     }),
   ])
@@ -40,34 +41,34 @@ pub fn parse_userinfo_tests() {
     it("simple parse", fn() {
       uri.parse("user:password@localhost")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, scheme: Some("user"), path: "password@localhost"),
+        Uri(..types.empty_uri, scheme: Some("user"), path: "password@localhost"),
       ))
       uri.parse("user@")
-      |> should.equal(Ok(Uri(..uri.empty_uri, path: "user@")))
+      |> should.equal(Ok(Uri(..types.empty_uri, path: "user@")))
       uri.parse("/user@")
-      |> should.equal(Ok(Uri(..uri.empty_uri, path: "/user@")))
+      |> should.equal(Ok(Uri(..types.empty_uri, path: "/user@")))
       uri.parse("user@localhost")
-      |> should.equal(Ok(Uri(..uri.empty_uri, path: "user@localhost")))
+      |> should.equal(Ok(Uri(..types.empty_uri, path: "user@localhost")))
       uri.parse("//user@localhost")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, userinfo: Some("user"), host: Some("localhost")),
+        Uri(..types.empty_uri, userinfo: Some("user"), host: Some("localhost")),
       ))
       uri.parse("//user:password@localhost")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           userinfo: Some("user:password"),
           host: Some("localhost"),
         ),
       ))
       uri.parse("foo:/user@")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, scheme: Some("foo"), path: "/user@"),
+        Uri(..types.empty_uri, scheme: Some("foo"), path: "/user@"),
       ))
       uri.parse("foo://user@localhost")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           userinfo: Some("user"),
           host: Some("localhost"),
@@ -76,7 +77,7 @@ pub fn parse_userinfo_tests() {
       uri.parse("foo://user:password@localhost")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           userinfo: Some("user:password"),
           host: Some("localhost"),
@@ -87,27 +88,27 @@ pub fn parse_userinfo_tests() {
       uri.parse("user:%E5%90%88@%E6%B0%97%E9%81%93")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("user"),
           path: "%E5%90%88@%E6%B0%97%E9%81%93",
         ),
       ))
       uri.parse("%E5%90%88%E6%B0%97%E9%81%93@")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, path: "%E5%90%88%E6%B0%97%E9%81%93@"),
+        Uri(..types.empty_uri, path: "%E5%90%88%E6%B0%97%E9%81%93@"),
       ))
       uri.parse("/%E5%90%88%E6%B0%97%E9%81%93@")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, path: "/%E5%90%88%E6%B0%97%E9%81%93@"),
+        Uri(..types.empty_uri, path: "/%E5%90%88%E6%B0%97%E9%81%93@"),
       ))
       uri.parse("%E5%90%88@%E6%B0%97%E9%81%93")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, path: "%E5%90%88@%E6%B0%97%E9%81%93"),
+        Uri(..types.empty_uri, path: "%E5%90%88@%E6%B0%97%E9%81%93"),
       ))
       uri.parse("//%E5%90%88@%E6%B0%97%E9%81%93")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           host: Some("%E6%B0%97%E9%81%93"),
           userinfo: Some("%E5%90%88"),
         ),
@@ -115,7 +116,7 @@ pub fn parse_userinfo_tests() {
       uri.parse("//%E5%90%88:%E6%B0%97@%E9%81%93")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           host: Some("%E9%81%93"),
           userinfo: Some("%E5%90%88:%E6%B0%97"),
         ),
@@ -123,7 +124,7 @@ pub fn parse_userinfo_tests() {
       uri.parse("foo:/%E5%90%88%E6%B0%97%E9%81%93@")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           path: "/%E5%90%88%E6%B0%97%E9%81%93@",
         ),
@@ -131,7 +132,7 @@ pub fn parse_userinfo_tests() {
       uri.parse("foo://%E5%90%88@%E6%B0%97%E9%81%93")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           userinfo: Some("%E5%90%88"),
           host: Some("%E6%B0%97%E9%81%93"),
@@ -140,7 +141,7 @@ pub fn parse_userinfo_tests() {
       uri.parse("foo://%E5%90%88:%E6%B0%97@%E9%81%93")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           userinfo: Some("%E5%90%88:%E6%B0%97"),
           host: Some("%E9%81%93"),
@@ -156,15 +157,15 @@ pub fn parse_host_tests() {
   describe("host parsing", [
     it("simple parse", fn() {
       uri.parse("//hostname")
-      |> should.equal(Ok(Uri(..uri.empty_uri, host: Some("hostname"))))
+      |> should.equal(Ok(Uri(..types.empty_uri, host: Some("hostname"))))
       uri.parse("foo://hostname")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, scheme: Some("foo"), host: Some("hostname")),
+        Uri(..types.empty_uri, scheme: Some("foo"), host: Some("hostname")),
       ))
       uri.parse("foo://user@hostname")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           userinfo: Some("user"),
           host: Some("hostname"),
@@ -173,54 +174,58 @@ pub fn parse_host_tests() {
     }),
     it("ipv4 parse", fn() {
       uri.parse("//127.0.0.1")
-      |> should.equal(Ok(Uri(..uri.empty_uri, host: Some("127.0.0.1"))))
+      |> should.equal(Ok(Uri(..types.empty_uri, host: Some("127.0.0.1"))))
       uri.parse("//127.0.0.1/over/there")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some("127.0.0.1"), path: "/over/there"),
+        Uri(..types.empty_uri, host: Some("127.0.0.1"), path: "/over/there"),
       ))
       uri.parse("//127.0.0.1?name=ferret")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           host: Some("127.0.0.1"),
           query: Some("name=ferret"),
         ),
       ))
       uri.parse("//127.0.0.1#nose")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some("127.0.0.1"), fragment: Some("nose")),
+        Uri(..types.empty_uri, host: Some("127.0.0.1"), fragment: Some("nose")),
       ))
 
       uri.parse("//127.0.0.x")
-      |> should.equal(Ok(Uri(..uri.empty_uri, host: Some("127.0.0.x"))))
+      |> should.equal(Ok(Uri(..types.empty_uri, host: Some("127.0.0.x"))))
       uri.parse("//1227.0.0.1")
-      |> should.equal(Ok(Uri(..uri.empty_uri, host: Some("1227.0.0.1"))))
+      |> should.equal(Ok(Uri(..types.empty_uri, host: Some("1227.0.0.1"))))
     }),
     it("ipv6 parse", fn() {
       uri.parse("//[::127.0.0.1]")
-      |> should.equal(Ok(Uri(..uri.empty_uri, host: Some("::127.0.0.1"))))
+      |> should.equal(Ok(Uri(..types.empty_uri, host: Some("::127.0.0.1"))))
       uri.parse("//[2001:0db8:0000:0000:0000:0000:1428:07ab]")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           host: Some("2001:0db8:0000:0000:0000:0000:1428:07ab"),
         ),
       ))
       uri.parse("//[::127.0.0.1]/over/there")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some("::127.0.0.1"), path: "/over/there"),
+        Uri(..types.empty_uri, host: Some("::127.0.0.1"), path: "/over/there"),
       ))
       uri.parse("//[::127.0.0.1]?name=ferret")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           host: Some("::127.0.0.1"),
           query: Some("name=ferret"),
         ),
       ))
       uri.parse("//[::127.0.0.1]#nose")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some("::127.0.0.1"), fragment: Some("nose")),
+        Uri(
+          ..types.empty_uri,
+          host: Some("::127.0.0.1"),
+          fragment: Some("nose"),
+        ),
       ))
 
       uri.parse("//[::127.0.0.x]") |> should.be_error
@@ -235,21 +240,23 @@ pub fn parse_port_tests() {
   describe("port parsing", [
     it("simple parse", fn() {
       uri.parse("/:8042")
-      |> should.equal(Ok(Uri(..uri.empty_uri, path: "/:8042")))
+      |> should.equal(Ok(Uri(..types.empty_uri, path: "/:8042")))
       uri.parse("//:8042")
-      |> should.equal(Ok(Uri(..uri.empty_uri, host: Some(""), port: Some(8042))))
+      |> should.equal(Ok(
+        Uri(..types.empty_uri, host: Some(""), port: Some(8042)),
+      ))
       uri.parse("//example.com:8042")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some("example.com"), port: Some(8042)),
+        Uri(..types.empty_uri, host: Some("example.com"), port: Some(8042)),
       ))
       uri.parse("foo:/:8042")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, scheme: Some("foo"), path: "/:8042"),
+        Uri(..types.empty_uri, scheme: Some("foo"), path: "/:8042"),
       ))
       uri.parse("foo://:8042")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some(""),
           port: Some(8042),
@@ -258,7 +265,7 @@ pub fn parse_port_tests() {
       uri.parse("foo://example.com:8042")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some("example.com"),
           port: Some(8042),
@@ -269,23 +276,25 @@ pub fn parse_port_tests() {
     }),
     it("undefined port", fn() {
       uri.parse("/:")
-      |> should.equal(Ok(Uri(..uri.empty_uri, path: "/:")))
+      |> should.equal(Ok(Uri(..types.empty_uri, path: "/:")))
       uri.parse("//:")
-      |> should.equal(Ok(Uri(..uri.empty_uri, host: Some(""), port: None)))
+      |> should.equal(Ok(Uri(..types.empty_uri, host: Some(""), port: None)))
       uri.parse("//example.com:")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some("example.com"), port: None),
+        Uri(..types.empty_uri, host: Some("example.com"), port: None),
       ))
       uri.parse("foo:/:")
-      |> should.equal(Ok(Uri(..uri.empty_uri, scheme: Some("foo"), path: "/:")))
+      |> should.equal(Ok(
+        Uri(..types.empty_uri, scheme: Some("foo"), path: "/:"),
+      ))
       uri.parse("foo://:")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, scheme: Some("foo"), host: Some(""), port: None),
+        Uri(..types.empty_uri, scheme: Some("foo"), host: Some(""), port: None),
       ))
       uri.parse("foo://example.com:")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some("example.com"),
           port: None,
@@ -301,17 +310,17 @@ pub fn parse_path_tests() {
   describe("path parsing", [
     it("simple parse", fn() {
       uri.parse("over/there")
-      |> should.equal(Ok(Uri(..uri.empty_uri, path: "over/there")))
+      |> should.equal(Ok(Uri(..types.empty_uri, path: "over/there")))
       uri.parse("/over/there")
-      |> should.equal(Ok(Uri(..uri.empty_uri, path: "/over/there")))
+      |> should.equal(Ok(Uri(..types.empty_uri, path: "/over/there")))
       uri.parse("foo:/over/there")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, scheme: Some("foo"), path: "/over/there"),
+        Uri(..types.empty_uri, scheme: Some("foo"), path: "/over/there"),
       ))
       uri.parse("foo://example.com/over/there")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some("example.com"),
           path: "/over/there",
@@ -320,7 +329,7 @@ pub fn parse_path_tests() {
       uri.parse("foo://example.com:8042/over/there")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some("example.com"),
           port: Some(8042),
@@ -336,12 +345,12 @@ pub fn parse_query_tests() {
     it("simple parse", fn() {
       uri.parse("foo:?name=ferret")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, scheme: Some("foo"), query: Some("name=ferret")),
+        Uri(..types.empty_uri, scheme: Some("foo"), query: Some("name=ferret")),
       ))
       uri.parse("foo:over/there?name=ferret")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           path: "over/there",
           query: Some("name=ferret"),
@@ -350,7 +359,7 @@ pub fn parse_query_tests() {
       uri.parse("foo:/over/there?name=ferret")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           path: "/over/there",
           query: Some("name=ferret"),
@@ -359,7 +368,7 @@ pub fn parse_query_tests() {
       uri.parse("foo://example.com?name=ferret")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some("example.com"),
           query: Some("name=ferret"),
@@ -368,7 +377,7 @@ pub fn parse_query_tests() {
       uri.parse("foo://example.com/?name=ferret")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some("example.com"),
           path: "/",
@@ -378,24 +387,24 @@ pub fn parse_query_tests() {
 
       uri.parse("?name=ferret")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, path: "", query: Some("name=ferret")),
+        Uri(..types.empty_uri, path: "", query: Some("name=ferret")),
       ))
       uri.parse("over/there?name=ferret")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, path: "over/there", query: Some("name=ferret")),
+        Uri(..types.empty_uri, path: "over/there", query: Some("name=ferret")),
       ))
       uri.parse("/?name=ferret")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, path: "/", query: Some("name=ferret")),
+        Uri(..types.empty_uri, path: "/", query: Some("name=ferret")),
       ))
       uri.parse("/over/there?name=ferret")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, path: "/over/there", query: Some("name=ferret")),
+        Uri(..types.empty_uri, path: "/over/there", query: Some("name=ferret")),
       ))
       uri.parse("//example.com?name=ferret")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           host: Some("example.com"),
           query: Some("name=ferret"),
         ),
@@ -403,7 +412,7 @@ pub fn parse_query_tests() {
       uri.parse("//example.com/?name=ferret")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           host: Some("example.com"),
           path: "/",
           query: Some("name=ferret"),
@@ -414,7 +423,7 @@ pub fn parse_query_tests() {
       uri.parse("foo://example.com/?name=%E5%90%88%E6%B0%97%E9%81%93")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some("example.com"),
           path: "/",
@@ -424,7 +433,7 @@ pub fn parse_query_tests() {
       uri.parse("//example.com/?name=%E5%90%88%E6%B0%97%E9%81%93")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           host: Some("example.com"),
           path: "/",
           query: Some("name=%E5%90%88%E6%B0%97%E9%81%93"),
@@ -439,12 +448,12 @@ pub fn parse_fragment_tests() {
     it("simple parse", fn() {
       uri.parse("foo:#nose")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, scheme: Some("foo"), fragment: Some("nose")),
+        Uri(..types.empty_uri, scheme: Some("foo"), fragment: Some("nose")),
       ))
       uri.parse("foo:over/there#nose")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           path: "over/there",
           fragment: Some("nose"),
@@ -453,7 +462,7 @@ pub fn parse_fragment_tests() {
       uri.parse("foo:/over/there#nose")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           path: "/over/there",
           fragment: Some("nose"),
@@ -462,7 +471,7 @@ pub fn parse_fragment_tests() {
       uri.parse("foo://example.com#nose")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some("example.com"),
           fragment: Some("nose"),
@@ -471,7 +480,7 @@ pub fn parse_fragment_tests() {
       uri.parse("foo://example.com/#nose")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some("example.com"),
           path: "/",
@@ -481,7 +490,7 @@ pub fn parse_fragment_tests() {
       uri.parse("foo://example.com#nose")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some("example.com"),
           fragment: Some("nose"),
@@ -489,27 +498,31 @@ pub fn parse_fragment_tests() {
       ))
 
       uri.parse("#nose")
-      |> should.equal(Ok(Uri(..uri.empty_uri, fragment: Some("nose"))))
+      |> should.equal(Ok(Uri(..types.empty_uri, fragment: Some("nose"))))
       uri.parse("over/there#nose")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, path: "over/there", fragment: Some("nose")),
+        Uri(..types.empty_uri, path: "over/there", fragment: Some("nose")),
       ))
       uri.parse("/#nose")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, path: "/", fragment: Some("nose")),
+        Uri(..types.empty_uri, path: "/", fragment: Some("nose")),
       ))
       uri.parse("/over/there#nose")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, path: "/over/there", fragment: Some("nose")),
+        Uri(..types.empty_uri, path: "/over/there", fragment: Some("nose")),
       ))
       uri.parse("//example.com#nose")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some("example.com"), fragment: Some("nose")),
+        Uri(
+          ..types.empty_uri,
+          host: Some("example.com"),
+          fragment: Some("nose"),
+        ),
       ))
       uri.parse("//example.com/#nose")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           host: Some("example.com"),
           path: "/",
           fragment: Some("nose"),
@@ -520,7 +533,7 @@ pub fn parse_fragment_tests() {
       uri.parse("foo://example.com#%E5%90%88%E6%B0%97%E9%81%93")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some("example.com"),
           fragment: Some("%E5%90%88%E6%B0%97%E9%81%93"),
@@ -529,7 +542,7 @@ pub fn parse_fragment_tests() {
       uri.parse("//example.com/#%E5%90%88%E6%B0%97%E9%81%93")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           host: Some("example.com"),
           path: "/",
           fragment: Some("%E5%90%88%E6%B0%97%E9%81%93"),
@@ -543,15 +556,17 @@ fn parse_special_tests() {
   describe("special parsing", [
     it("special 1", fn() {
       uri.parse("//?")
-      |> should.equal(Ok(Uri(..uri.empty_uri, host: Some(""), query: Some(""))))
+      |> should.equal(Ok(
+        Uri(..types.empty_uri, host: Some(""), query: Some("")),
+      ))
       uri.parse("//#")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some(""), fragment: Some("")),
+        Uri(..types.empty_uri, host: Some(""), fragment: Some("")),
       ))
       uri.parse("//?#")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           host: Some(""),
           query: Some(""),
           fragment: Some(""),
@@ -560,7 +575,7 @@ fn parse_special_tests() {
       uri.parse("foo://?")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some(""),
           query: Some(""),
@@ -569,7 +584,7 @@ fn parse_special_tests() {
       uri.parse("foo://#")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some(""),
           fragment: Some(""),
@@ -578,7 +593,7 @@ fn parse_special_tests() {
       uri.parse("foo://?#")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some(""),
           query: Some(""),
@@ -586,23 +601,23 @@ fn parse_special_tests() {
         ),
       ))
       uri.parse("///")
-      |> should.equal(Ok(Uri(..uri.empty_uri, host: Some(""), path: "/")))
+      |> should.equal(Ok(Uri(..types.empty_uri, host: Some(""), path: "/")))
       uri.parse("///hostname")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some(""), path: "/hostname"),
+        Uri(..types.empty_uri, host: Some(""), path: "/hostname"),
       ))
       uri.parse("///?")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some(""), path: "/", query: Some("")),
+        Uri(..types.empty_uri, host: Some(""), path: "/", query: Some("")),
       ))
       uri.parse("///#")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some(""), path: "/", fragment: Some("")),
+        Uri(..types.empty_uri, host: Some(""), path: "/", fragment: Some("")),
       ))
       uri.parse("///?#")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           host: Some(""),
           path: "/",
           query: Some(""),
@@ -611,27 +626,27 @@ fn parse_special_tests() {
       ))
       uri.parse("//foo?")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some("foo"), query: Some("")),
+        Uri(..types.empty_uri, host: Some("foo"), query: Some("")),
       ))
       uri.parse("//foo#")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some("foo"), fragment: Some("")),
+        Uri(..types.empty_uri, host: Some("foo"), fragment: Some("")),
       ))
       uri.parse("//foo?#")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           host: Some("foo"),
           query: Some(""),
           fragment: Some(""),
         ),
       ))
       uri.parse("//foo/")
-      |> should.equal(Ok(Uri(..uri.empty_uri, host: Some("foo"), path: "/")))
+      |> should.equal(Ok(Uri(..types.empty_uri, host: Some("foo"), path: "/")))
       uri.parse("http://foo?")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("http"),
           host: Some("foo"),
           query: Some(""),
@@ -640,7 +655,7 @@ fn parse_special_tests() {
       uri.parse("http://foo#")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("http"),
           host: Some("foo"),
           fragment: Some(""),
@@ -649,7 +664,7 @@ fn parse_special_tests() {
       uri.parse("http://foo?#")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("http"),
           host: Some("foo"),
           query: Some(""),
@@ -658,12 +673,17 @@ fn parse_special_tests() {
       ))
       uri.parse("http://foo/")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, scheme: Some("http"), host: Some("foo"), path: "/"),
+        Uri(
+          ..types.empty_uri,
+          scheme: Some("http"),
+          host: Some("foo"),
+          path: "/",
+        ),
       ))
       uri.parse("http://foo:80?")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("http"),
           host: Some("foo"),
           port: Some(80),
@@ -673,7 +693,7 @@ fn parse_special_tests() {
       uri.parse("http://foo:80#")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("http"),
           host: Some("foo"),
           port: Some(80),
@@ -683,7 +703,7 @@ fn parse_special_tests() {
       uri.parse("http://foo:80?#")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("http"),
           host: Some("foo"),
           port: Some(80),
@@ -694,7 +714,7 @@ fn parse_special_tests() {
       uri.parse("http://foo:80/")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("http"),
           host: Some("foo"),
           port: Some(80),
@@ -702,23 +722,23 @@ fn parse_special_tests() {
         ),
       ))
       uri.parse("?")
-      |> should.equal(Ok(Uri(..uri.empty_uri, path: "", query: Some(""))))
+      |> should.equal(Ok(Uri(..types.empty_uri, path: "", query: Some(""))))
       uri.parse("??")
-      |> should.equal(Ok(Uri(..uri.empty_uri, path: "", query: Some("?"))))
+      |> should.equal(Ok(Uri(..types.empty_uri, path: "", query: Some("?"))))
       uri.parse("???")
-      |> should.equal(Ok(Uri(..uri.empty_uri, path: "", query: Some("??"))))
+      |> should.equal(Ok(Uri(..types.empty_uri, path: "", query: Some("??"))))
       uri.parse("#")
-      |> should.equal(Ok(Uri(..uri.empty_uri, path: "", fragment: Some(""))))
+      |> should.equal(Ok(Uri(..types.empty_uri, path: "", fragment: Some(""))))
       uri.parse("##")
-      |> should.equal(Ok(Uri(..uri.empty_uri, path: "", fragment: Some("#"))))
+      |> should.equal(Ok(Uri(..types.empty_uri, path: "", fragment: Some("#"))))
       uri.parse("###")
-      |> should.equal(Ok(Uri(..uri.empty_uri, path: "", fragment: Some("##"))))
+      |> should.equal(Ok(Uri(..types.empty_uri, path: "", fragment: Some("##"))))
     }),
     it("special 2", fn() {
       uri.parse("a://:1/")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("a"),
           host: Some(""),
           port: Some(1),
@@ -726,15 +746,15 @@ fn parse_special_tests() {
         ),
       ))
       uri.parse("a:/a/")
-      |> should.equal(Ok(Uri(..uri.empty_uri, scheme: Some("a"), path: "/a/")))
+      |> should.equal(Ok(Uri(..types.empty_uri, scheme: Some("a"), path: "/a/")))
       uri.parse("//@")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some(""), path: "", userinfo: Some("")),
+        Uri(..types.empty_uri, host: Some(""), path: "", userinfo: Some("")),
       ))
       uri.parse("foo://@")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some(""),
           path: "",
@@ -743,12 +763,12 @@ fn parse_special_tests() {
       ))
       uri.parse("//@/")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some(""), path: "/", userinfo: Some("")),
+        Uri(..types.empty_uri, host: Some(""), path: "/", userinfo: Some("")),
       ))
       uri.parse("foo://@/")
       |> should.equal(Ok(
         Uri(
-          ..uri.empty_uri,
+          ..types.empty_uri,
           scheme: Some("foo"),
           host: Some(""),
           path: "/",
@@ -757,11 +777,11 @@ fn parse_special_tests() {
       ))
       uri.parse("//localhost:/")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some("localhost"), path: "/"),
+        Uri(..types.empty_uri, host: Some("localhost"), path: "/"),
       ))
       uri.parse("//:")
       |> should.equal(Ok(
-        Uri(..uri.empty_uri, host: Some("localhost"), path: ""),
+        Uri(..types.empty_uri, host: Some("localhost"), path: ""),
       ))
     }),
   ])
@@ -777,6 +797,8 @@ pub fn parse_failure_tests() {
       uri.parse("//host/path#foö") |> should.be_error
       uri.parse("//[:::127.0.0.1]") |> should.be_error
       uri.parse("//localhost:A8") |> should.be_error
+      uri.parse("http://f%ff%%ff/") |> should.be_error
+      uri.parse("http://f%ff%fr/") |> should.be_error
     }),
   ])
 }
