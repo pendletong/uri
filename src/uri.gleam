@@ -130,7 +130,7 @@ fn do_remove_dot_segments(path: String, acc: String) -> String {
     "/." -> acc <> "/"
     "/../" <> rest -> do_remove_dot_segments("/" <> rest, remove_segment(acc))
     "/.." -> remove_segment(acc) <> "/"
-    "." | ".." | "" -> acc
+    "." | ".." | "" -> acc <> path
     _ -> {
       let assert Ok(#(char, rest)) = string.pop_grapheme(path)
       do_remove_dot_segments(rest, acc <> char)
