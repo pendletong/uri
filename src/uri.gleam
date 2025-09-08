@@ -118,8 +118,28 @@ pub fn parse_query(query: String) -> Result(List(#(String, String)), Nil) {
   parser.parse_query_parts(query)
 }
 
+/// Returns the origin of the passed URI.
+///
+/// Returns the origin of a uri based on
+/// [RFC 6454](https://tools.ietf.org/html/rfc6454)
+///
+/// If the URI scheme is not `http` and `https`.
+/// `Error` will be returned.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let assert Ok(uri) = parse("https://blah.com/test?this#that")
+/// origin(uri)
+/// // -> Ok("https://blah.com")
+/// ```
+///
 pub fn origin(uri: Uri) -> Result(String, Nil) {
-  case uri.scheme, uri.host, utils.scheme_normalisation(uri.port, uri.scheme) {
+  case
+    uri.scheme |> option.map(string.lowercase),
+    uri.host |> option.map(string.lowercase),
+    utils.scheme_normalisation(uri.port, uri.scheme)
+  {
     Some("http" as scheme), Some(host), port
     | Some("https" as scheme), Some(host), port
     -> {
