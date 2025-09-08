@@ -119,5 +119,16 @@ pub fn parse_query(query: String) -> Result(List(#(String, String)), Nil) {
 }
 
 pub fn origin(uri: Uri) -> Result(String, Nil) {
-  todo
+  case uri.scheme, uri.host, utils.scheme_normalisation(uri.port, uri.scheme) {
+    Some("http" as scheme), Some(host), port
+    | Some("https" as scheme), Some(host), port
+    -> {
+      let port =
+        port
+        |> option.map(fn(p) { ":" <> int.to_string(p) })
+        |> option.unwrap("")
+      Ok(scheme <> "://" <> host <> port)
+    }
+    _, _, _ -> Error(Nil)
+  }
 }

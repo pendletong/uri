@@ -1317,6 +1317,68 @@ pub fn query_to_string_tests() {
     }),
   ])
 }
+
+pub fn origin_tests() {
+  describe("origin", [
+    it("basic origin", fn() {
+      uri.parse("http://")
+      |> should.be_ok
+      |> uri.origin
+      |> should.be_ok
+      |> should.equal("http://")
+      uri.parse("http://example.com/test")
+      |> should.be_ok
+      |> uri.origin
+      |> should.be_ok
+      |> should.equal("http://example.com")
+      uri.parse("http://example.com:8080/test")
+      |> should.be_ok
+      |> uri.origin
+      |> should.be_ok
+      |> should.equal("http://example.com:8080")
+      uri.parse("http://example.com:80/test")
+      |> should.be_ok
+      |> uri.origin
+      |> should.be_ok
+      |> should.equal("http://example.com")
+      uri.parse("https://example.com:443/test")
+      |> should.be_ok
+      |> uri.origin
+      |> should.be_ok
+      |> should.equal("https://example.com")
+      uri.parse("http://example.com:443/test")
+      |> should.be_ok
+      |> uri.origin
+      |> should.be_ok
+      |> should.equal("http://example.com:443")
+      uri.parse("https://")
+      |> should.be_ok
+      |> uri.origin
+      |> should.be_ok
+      |> should.equal("https://")
+      uri.parse("http://example.com?query=no")
+      |> should.be_ok
+      |> uri.origin
+      |> should.be_ok
+      |> should.equal("http://example.com")
+      uri.parse("http:///nohost")
+      |> should.be_ok
+      |> uri.origin
+      |> should.be_ok
+      |> should.equal("http://")
+    }),
+    it("errors", fn() {
+      uri.parse("/nohost")
+      |> should.be_ok
+      |> uri.origin
+      |> should.be_error
+      uri.parse("file:///unknown/nohost")
+      |> should.be_ok
+      |> uri.origin
+      |> should.be_error
+    }),
+  ])
+}
 // gleeunit test functions end in `_test`
 // pub fn uri_test() {
 //   match("uri:")

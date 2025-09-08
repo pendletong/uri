@@ -97,7 +97,7 @@ pub fn normalise(uri: Uri) -> Uri {
   Uri(scheme, userinfo, host, port, path, query, fragment)
 }
 
-fn scheme_normalisation(
+pub fn scheme_normalisation(
   port: Option(Int),
   scheme: Option(String),
 ) -> Option(Int) {
