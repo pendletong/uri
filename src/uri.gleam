@@ -1,9 +1,13 @@
 import gleam/bool
 import gleam/int
+import gleam/list
 import gleam/option.{None, Some}
+import gleam/result
+import gleam/string
 import gleam/uri
 import internal/parser
 import internal/utils
+import splitter
 import types.{type Uri, Uri}
 
 pub fn parse(uri: String) -> Result(Uri, Nil) {
@@ -104,11 +108,16 @@ pub fn percent_encode(value: String) -> String {
 }
 
 pub fn query_to_string(query: List(#(String, String))) -> String {
-  todo
+  list.map(query, fn(q) {
+    [utils.do_percent_encode(q.0), "=", utils.do_percent_encode(q.1)]
+  })
+  |> list.intersperse(["&"])
+  |> list.flatten
+  |> string.concat
 }
 
 pub fn parse_query(query: String) -> Result(List(#(String, String)), Nil) {
-  todo
+  parser.parse_query_parts(query)
 }
 
 pub fn origin(uri: Uri) -> Result(String, Nil) {

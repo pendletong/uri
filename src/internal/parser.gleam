@@ -4,6 +4,8 @@ import gleam/list.{Continue, Stop}
 import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
+import internal/utils
+import splitter
 
 import types.{type Uri, Uri, empty_uri}
 
@@ -511,8 +513,8 @@ fn do_parse_reg_name(str: String, reg_name: String) {
 fn parse_pct_encoded(str: String) {
   case str {
     "%" <> rest -> {
-      use #(hex1, rest) <- result.try(parse_hex_digit(rest))
-      use #(hex2, rest) <- result.try(parse_hex_digit(rest))
+      use #(hex1, rest) <- result.try(utils.parse_hex_digit(rest))
+      use #(hex2, rest) <- result.try(utils.parse_hex_digit(rest))
 
       Ok(#("%" <> hex1 <> hex2, rest))
     }
@@ -689,35 +691,7 @@ fn parse_min_max(str, min, max, parse_fn) {
 }
 
 fn parse_hex_digits(str, min, max) {
-  parse_min_max(str, min, max, parse_hex_digit)
-}
-
-pub fn parse_hex_digit(str) {
-  case str {
-    "0" as l <> rest
-    | "1" as l <> rest
-    | "2" as l <> rest
-    | "3" as l <> rest
-    | "4" as l <> rest
-    | "5" as l <> rest
-    | "6" as l <> rest
-    | "7" as l <> rest
-    | "8" as l <> rest
-    | "9" as l <> rest
-    | "a" as l <> rest
-    | "b" as l <> rest
-    | "c" as l <> rest
-    | "d" as l <> rest
-    | "e" as l <> rest
-    | "f" as l <> rest
-    | "A" as l <> rest
-    | "B" as l <> rest
-    | "C" as l <> rest
-    | "D" as l <> rest
-    | "E" as l <> rest
-    | "F" as l <> rest -> Ok(#(l, rest))
-    _ -> Error(Nil)
-  }
+  parse_min_max(str, min, max, utils.parse_hex_digit)
 }
 
 fn parse_digit(str: String) -> Result(#(String, String), Nil) {
@@ -847,4 +821,42 @@ fn combine_uris(uris: List(Uri)) -> Uri {
       _ -> acc
     }
   })
+}
+
+pub fn parse_query_parts(query: String) -> Result(List(#(String, String)), Nil) {
+  let splitter = splitter.new(["&"])
+
+  do_parse_query_parts(splitter, query, [])
+}
+
+fn do_parse_query_parts(
+  splitter: splitter.Splitter,
+  query: String,
+  acc: List(#(String, String)),
+) -> Result(List(#(String, String)), Nil) {
+  case splitter.split(splitter, query) {
+    #("", _, "") -> Ok(list.reverse(acc))
+    #("", _, rest) -> do_parse_query_parts(splitter, rest, acc)
+    #(pair, _, rest) -> {
+      use pair <- result.try(do_parse_query_pair(pair))
+
+      let acc = [pair, ..acc]
+
+      case rest {
+        "" -> Ok(list.reverse(acc))
+        _ -> do_parse_query_parts(splitter, rest, acc)
+      }
+    }
+  }
+}
+
+fn do_parse_query_pair(pair: String) -> Result(#(String, String), Nil) {
+  let #(key, val) = case string.split_once(pair, "=") {
+    Error(_) -> #(pair, "")
+    Ok(p) -> p
+  }
+  use key <- result.try(utils.percent_decode(string.replace(key, "+", " ")))
+  use val <- result.try(utils.percent_decode(string.replace(val, "+", " ")))
+
+  Ok(#(key, val))
 }

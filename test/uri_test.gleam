@@ -341,7 +341,7 @@ pub fn parse_path_tests() {
   ])
 }
 
-pub fn parse_query_tests() {
+pub fn parse_query_part_tests() {
   describe("query parsing", [
     it("simple parse", fn() {
       uri.parse("foo:?name=ferret")
@@ -553,7 +553,7 @@ pub fn parse_fragment_tests() {
   ])
 }
 
-fn parse_special_tests() {
+pub fn parse_special_tests() {
   describe("special parsing", [
     it("special 1", fn() {
       uri.parse("//?")
@@ -731,9 +731,9 @@ fn parse_special_tests() {
       uri.parse("#")
       |> should.equal(Ok(Uri(..types.empty_uri, path: "", fragment: Some(""))))
       uri.parse("##")
-      |> should.equal(Ok(Uri(..types.empty_uri, path: "", fragment: Some("#"))))
+      |> should.be_error
       uri.parse("###")
-      |> should.equal(Ok(Uri(..types.empty_uri, path: "", fragment: Some("##"))))
+      |> should.be_error
     }),
     it("special 2", fn() {
       uri.parse("a://:1/")
@@ -781,9 +781,7 @@ fn parse_special_tests() {
         Uri(..types.empty_uri, host: Some("localhost"), path: "/"),
       ))
       uri.parse("//:")
-      |> should.equal(Ok(
-        Uri(..types.empty_uri, host: Some("localhost"), path: ""),
-      ))
+      |> should.equal(Ok(Uri(..types.empty_uri, host: Some(""), path: "")))
     }),
   ])
 }
@@ -1157,29 +1155,6 @@ pub fn equivalence_tests() {
   ])
 }
 
-pub fn percent_encode_tests() {
-  describe("percent encoding", [
-    it("encoding", fn() {
-      percent_codec_fixtures
-      |> list.map(fn(t) {
-        let #(a, b) = t
-        uri.percent_encode(a)
-        |> should.equal(b)
-      })
-      Nil
-    }),
-    it("decoding", fn() {
-      percent_codec_fixtures
-      |> list.map(fn(t) {
-        let #(a, b) = t
-        uri.percent_decode(b)
-        |> should.equal(Ok(a))
-      })
-      Nil
-    }),
-  ])
-}
-
 const percent_codec_fixtures = [
   #(" ", "%20"),
   #(",", "%2C"),
@@ -1206,6 +1181,85 @@ const percent_codec_fixtures = [
   #("+", "+"),
   #("100% great+fun", "100%25%20great+fun"),
 ]
+
+pub fn percent_encode_tests() {
+  describe("percent encoding", [
+    it("encoding", fn() {
+      percent_codec_fixtures
+      |> list.map(fn(t) {
+        let #(a, b) = t
+        uri.percent_encode(a)
+        |> should.equal(b)
+      })
+      Nil
+    }),
+    it("decoding", fn() {
+      percent_codec_fixtures
+      |> list.map(fn(t) {
+        let #(a, b) = t
+        uri.percent_decode(b)
+        |> should.equal(Ok(a))
+      })
+      Nil
+    }),
+  ])
+}
+
+pub fn parse_query_tests() {
+  describe("parse_query", [
+    it("basic parse", fn() {
+      uri.parse_query("el1=123&el2=321")
+      |> should.be_ok
+      |> should.equal([#("el1", "123"), #("el2", "321")])
+      uri.parse_query("el%201=123&el+2=321")
+      |> should.be_ok
+      |> should.equal([#("el 1", "123"), #("el 2", "321")])
+      uri.parse_query("el%E2%82%AC1=12%CE%A33&el%F0%90%80%852=321")
+      |> should.be_ok
+      |> should.equal([#("el€1", "12Σ3"), #("el𐀅2", "321")])
+    }),
+    it("empty parts", fn() {
+      uri.parse_query("el1=123&&el2=321")
+      |> should.be_ok
+      |> should.equal([#("el1", "123"), #("el2", "321")])
+      uri.parse_query("el1=&el2=")
+      |> should.be_ok
+      |> should.equal([#("el1", ""), #("el2", "")])
+      uri.parse_query("")
+      |> should.be_ok
+      |> should.equal([])
+      uri.parse_query("=123&el2=321")
+      |> should.be_ok
+      |> should.equal([#("", "123"), #("el2", "321")])
+      uri.parse_query("=&el2=321")
+      |> should.be_ok
+      |> should.equal([#("", ""), #("el2", "321")])
+    }),
+  ])
+}
+
+pub fn query_to_string_tests() {
+  describe("query_to_string", [
+    it("basic query", fn() {
+      uri.query_to_string([#("el1", "123"), #("el2", "321")])
+      |> should.equal("el1=123&el2=321")
+      uri.query_to_string([#("el 1", "123"), #("el 2", "321")])
+      |> should.equal("el%201=123&el%202=321")
+      uri.query_to_string([#("el€1", "12Σ3"), #("el𐀅2", "321")])
+      |> should.equal("el%E2%82%AC1=12%CE%A33&el%F0%90%80%852=321")
+    }),
+    it("empty parts", fn() {
+      uri.query_to_string([#("el1", ""), #("el2", "")])
+      |> should.equal("el1=&el2=")
+      uri.query_to_string([])
+      |> should.equal("")
+      uri.query_to_string([#("", "123"), #("el2", "321")])
+      |> should.equal("=123&el2=321")
+      uri.query_to_string([#("", ""), #("el2", "321")])
+      |> should.equal("=&el2=321")
+    }),
+  ])
+}
 // gleeunit test functions end in `_test`
 // pub fn uri_test() {
 //   match("uri:")

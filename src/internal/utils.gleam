@@ -4,9 +4,21 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
-import internal/parser
 import splitter.{type Splitter}
 import types.{type Uri, Uri}
+
+pub const scheme_port = [
+  #("http", 80),
+  #("https", 443),
+  #("ftp", 21),
+  #("ws", 80),
+  #("wss", 443),
+]
+
+pub fn get_port_for_scheme(scheme: String) -> Result(Int, Nil) {
+  list.find(scheme_port, fn(sp) { sp.0 == scheme })
+  |> result.map(fn(sp) { sp.1 })
+}
 
 pub fn merge(base: Uri, relative: Uri) -> Result(Uri, Nil) {
   use <- bool.guard(when: base.scheme == None, return: Error(Nil))
@@ -133,9 +145,9 @@ fn do_normalise_percent(
       case after {
         "" -> res <> before
         _ -> {
-          let #(pc_val, rest) = case parser.parse_hex_digit(after) {
+          let #(pc_val, rest) = case parse_hex_digit(after) {
             Ok(#(pc1, rest)) -> {
-              case parser.parse_hex_digit(rest) {
+              case parse_hex_digit(rest) {
                 Ok(#(pc2, rest)) -> {
                   let hex = pc1 <> pc2
                   let v = unescape_percent(hex)
@@ -171,6 +183,34 @@ fn unescape_percent(str: String) -> String {
   }
 }
 
+pub fn parse_hex_digit(str) {
+  case str {
+    "0" as l <> rest
+    | "1" as l <> rest
+    | "2" as l <> rest
+    | "3" as l <> rest
+    | "4" as l <> rest
+    | "5" as l <> rest
+    | "6" as l <> rest
+    | "7" as l <> rest
+    | "8" as l <> rest
+    | "9" as l <> rest
+    | "a" as l <> rest
+    | "b" as l <> rest
+    | "c" as l <> rest
+    | "d" as l <> rest
+    | "e" as l <> rest
+    | "f" as l <> rest
+    | "A" as l <> rest
+    | "B" as l <> rest
+    | "C" as l <> rest
+    | "D" as l <> rest
+    | "E" as l <> rest
+    | "F" as l <> rest -> Ok(#(l, rest))
+    _ -> Error(Nil)
+  }
+}
+
 fn encoding_not_needed(i: Int) -> Bool {
   // $-_.+!*'()
   case i {
@@ -202,8 +242,8 @@ fn do_percent_decode(
   case splitter.split(splitter, str) {
     #(before, "", "") -> Ok(acc <> before)
     #(before, "%", after) -> {
-      use #(hd1, rest) <- result.try(parser.parse_hex_digit(after))
-      use #(hd2, rest) <- result.try(parser.parse_hex_digit(rest))
+      use #(hd1, rest) <- result.try(parse_hex_digit(after))
+      use #(hd2, rest) <- result.try(parse_hex_digit(rest))
 
       use char <- result.try(int.base_parse(hd1 <> hd2, 16))
       case int.bitwise_and(char, 128) {
@@ -263,14 +303,14 @@ pub fn decode_3byte_utf(
     "%" <> rest -> Ok(rest)
     _ -> Error(Nil)
   })
-  use #(hd3, rest) <- result.try(parser.parse_hex_digit(rest))
-  use #(hd4, rest) <- result.try(parser.parse_hex_digit(rest))
+  use #(hd3, rest) <- result.try(parse_hex_digit(rest))
+  use #(hd4, rest) <- result.try(parse_hex_digit(rest))
   use rest <- result.try(case rest {
     "%" <> rest -> Ok(rest)
     _ -> Error(Nil)
   })
-  use #(hd5, rest) <- result.try(parser.parse_hex_digit(rest))
-  use #(hd6, rest) <- result.try(parser.parse_hex_digit(rest))
+  use #(hd5, rest) <- result.try(parse_hex_digit(rest))
+  use #(hd6, rest) <- result.try(parse_hex_digit(rest))
 
   use bytes <- result.try(int.base_parse(
     first_byte <> hd3 <> hd4 <> hd5 <> hd6,
@@ -308,8 +348,8 @@ pub fn decode_2byte_utf(
     "%" <> rest -> Ok(rest)
     _ -> Error(Nil)
   })
-  use #(hd3, rest) <- result.try(parser.parse_hex_digit(rest))
-  use #(hd4, rest) <- result.try(parser.parse_hex_digit(rest))
+  use #(hd3, rest) <- result.try(parse_hex_digit(rest))
+  use #(hd4, rest) <- result.try(parse_hex_digit(rest))
 
   use bytes <- result.try(int.base_parse(first_byte <> hd3 <> hd4, 16))
   let assert <<
@@ -341,20 +381,20 @@ fn decode_4byte_utf(
     "%" <> rest -> Ok(rest)
     _ -> Error(Nil)
   })
-  use #(hd3, rest) <- result.try(parser.parse_hex_digit(rest))
-  use #(hd4, rest) <- result.try(parser.parse_hex_digit(rest))
+  use #(hd3, rest) <- result.try(parse_hex_digit(rest))
+  use #(hd4, rest) <- result.try(parse_hex_digit(rest))
   use rest <- result.try(case rest {
     "%" <> rest -> Ok(rest)
     _ -> Error(Nil)
   })
-  use #(hd5, rest) <- result.try(parser.parse_hex_digit(rest))
-  use #(hd6, rest) <- result.try(parser.parse_hex_digit(rest))
+  use #(hd5, rest) <- result.try(parse_hex_digit(rest))
+  use #(hd6, rest) <- result.try(parse_hex_digit(rest))
   use rest <- result.try(case rest {
     "%" <> rest -> Ok(rest)
     _ -> Error(Nil)
   })
-  use #(hd7, rest) <- result.try(parser.parse_hex_digit(rest))
-  use #(hd8, rest) <- result.try(parser.parse_hex_digit(rest))
+  use #(hd7, rest) <- result.try(parse_hex_digit(rest))
+  use #(hd8, rest) <- result.try(parse_hex_digit(rest))
 
   use bytes <- result.try(int.base_parse(
     first_byte <> hd3 <> hd4 <> hd5 <> hd6 <> hd7 <> hd8,
