@@ -1006,6 +1006,54 @@ pub fn normalise_tests() {
       |> uri.normalise
       |> should.equal(Uri(..empty_uri, path: "mid/6"))
     }),
+    it("normalise ports", fn() {
+      uri.parse("http://example.com:80/test")
+      |> should.be_ok
+      |> uri.normalise
+      |> should.equal(
+        Uri(
+          ..empty_uri,
+          scheme: Some("http"),
+          host: Some("example.com"),
+          path: "/test",
+        ),
+      )
+      uri.parse("https://example.com:443/test")
+      |> should.be_ok
+      |> uri.normalise
+      |> should.equal(
+        Uri(
+          ..empty_uri,
+          scheme: Some("https"),
+          host: Some("example.com"),
+          path: "/test",
+        ),
+      )
+      uri.parse("http://example.com:8080/test")
+      |> should.be_ok
+      |> uri.normalise
+      |> should.equal(
+        Uri(
+          ..empty_uri,
+          scheme: Some("http"),
+          host: Some("example.com"),
+          port: Some(8080),
+          path: "/test",
+        ),
+      )
+      uri.parse("https://example.com:8043/test")
+      |> should.be_ok
+      |> uri.normalise
+      |> should.equal(
+        Uri(
+          ..empty_uri,
+          scheme: Some("https"),
+          host: Some("example.com"),
+          port: Some(8043),
+          path: "/test",
+        ),
+      )
+    }),
     it("abnormal examples", fn() {
       let base = uri.parse("http://a/b/c/d;p?q") |> should.be_ok
 
@@ -1201,6 +1249,15 @@ pub fn percent_encode_tests() {
         |> should.equal(Ok(a))
       })
       Nil
+    }),
+    it("fail decoding", fn() {
+      uri.percent_decode("%C3test") |> should.be_error
+      uri.percent_decode("%C3%01test") |> should.be_error
+      uri.percent_decode("%E2%82%01test") |> should.be_error
+      uri.percent_decode("%E2%01%ACtest") |> should.be_error
+      uri.percent_decode("%F0%90%80%01test") |> should.be_error
+      uri.percent_decode("%F0%90%01%85test") |> should.be_error
+      uri.percent_decode("%F0%01%80%85test") |> should.be_error
     }),
   ])
 }

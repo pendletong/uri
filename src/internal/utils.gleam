@@ -1,7 +1,7 @@
 import gleam/bool
 import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
 import splitter.{type Splitter}
@@ -15,9 +15,10 @@ pub const scheme_port = [
   #("wss", 443),
 ]
 
-pub fn get_port_for_scheme(scheme: String) -> Result(Int, Nil) {
+pub fn get_port_for_scheme(scheme: String) -> Option(Int) {
   list.find(scheme_port, fn(sp) { sp.0 == scheme })
   |> result.map(fn(sp) { sp.1 })
+  |> option.from_result
 }
 
 pub fn merge(base: Uri, relative: Uri) -> Result(Uri, Nil) {
@@ -86,7 +87,7 @@ pub fn normalise(uri: Uri) -> Uri {
   let percent_normaliser = normalise_percent(percent_splitter, _)
   let scheme = uri.scheme |> option.map(string.lowercase)
   let userinfo = uri.userinfo |> option.map(percent_normaliser)
-  let port = uri.port
+  let port = uri.port |> scheme_normalisation(scheme)
   let host =
     uri.host |> option.map(string.lowercase) |> option.map(percent_normaliser)
   let path = uri.path |> percent_normaliser |> remove_dot_segments
@@ -94,6 +95,21 @@ pub fn normalise(uri: Uri) -> Uri {
   let fragment = uri.fragment |> option.map(percent_normaliser)
 
   Uri(scheme, userinfo, host, port, path, query, fragment)
+}
+
+fn scheme_normalisation(
+  port: Option(Int),
+  scheme: Option(String),
+) -> Option(Int) {
+  case scheme, port {
+    Some(scheme), Some(_) -> {
+      case get_port_for_scheme(scheme) == port {
+        True -> None
+        False -> port
+      }
+    }
+    _, _ -> port
+  }
 }
 
 fn remove_dot_segments(path: String) -> String {
@@ -258,6 +274,7 @@ fn do_percent_decode(
         _ -> {
           case int.bitwise_and(char, 224) {
             192 -> {
+              "2bytes" |> echo
               use #(char, rest) <- result.try(decode_2byte_utf(hd1 <> hd2, rest))
 
               do_percent_decode(splitter, rest, acc <> before <> char)
@@ -295,6 +312,43 @@ fn do_percent_decode(
   }
 }
 
+pub fn decode_2byte_utf(
+  first_byte: String,
+  rest: String,
+) -> Result(#(String, String), Nil) {
+  use rest <- result.try(case rest {
+    "%" <> rest -> Ok(rest)
+    _ -> Error(Nil)
+  })
+  use #(hd3, rest) <- result.try(parse_hex_digit(rest))
+
+  use <- bool.guard(when: !within_byte_range(hd3), return: Error(Nil))
+
+  use #(hd4, rest) <- result.try(parse_hex_digit(rest))
+
+  use bytes <- result.try(int.base_parse(first_byte <> hd3 <> hd4, 16))
+
+  let assert <<
+    _:size(3),
+    x:size(3),
+    y1:size(2),
+    _:size(2),
+    y2:size(2),
+    z:size(4),
+  >> = <<bytes:size(16)>>
+  let assert <<i:size(16)>> = <<
+    0:size(5),
+    x:size(3),
+    y1:size(2),
+    y2:size(2),
+    z:size(4),
+  >>
+
+  use res <- result.try(string.utf_codepoint(i))
+
+  Ok(#(string.from_utf_codepoints([res]), rest))
+}
+
 pub fn decode_3byte_utf(
   first_byte: String,
   rest: String,
@@ -304,12 +358,18 @@ pub fn decode_3byte_utf(
     _ -> Error(Nil)
   })
   use #(hd3, rest) <- result.try(parse_hex_digit(rest))
+
+  use <- bool.guard(when: !within_byte_range(hd3), return: Error(Nil))
+
   use #(hd4, rest) <- result.try(parse_hex_digit(rest))
   use rest <- result.try(case rest {
     "%" <> rest -> Ok(rest)
     _ -> Error(Nil)
   })
   use #(hd5, rest) <- result.try(parse_hex_digit(rest))
+
+  use <- bool.guard(when: !within_byte_range(hd5), return: Error(Nil))
+
   use #(hd6, rest) <- result.try(parse_hex_digit(rest))
 
   use bytes <- result.try(int.base_parse(
@@ -340,39 +400,6 @@ pub fn decode_3byte_utf(
   Ok(#(string.from_utf_codepoints([res]), rest))
 }
 
-pub fn decode_2byte_utf(
-  first_byte: String,
-  rest: String,
-) -> Result(#(String, String), Nil) {
-  use rest <- result.try(case rest {
-    "%" <> rest -> Ok(rest)
-    _ -> Error(Nil)
-  })
-  use #(hd3, rest) <- result.try(parse_hex_digit(rest))
-  use #(hd4, rest) <- result.try(parse_hex_digit(rest))
-
-  use bytes <- result.try(int.base_parse(first_byte <> hd3 <> hd4, 16))
-  let assert <<
-    _:size(3),
-    x:size(3),
-    y1:size(2),
-    _:size(2),
-    y2:size(2),
-    z:size(4),
-  >> = <<bytes:size(16)>>
-  let assert <<i:size(16)>> = <<
-    0:size(5),
-    x:size(3),
-    y1:size(2),
-    y2:size(2),
-    z:size(4),
-  >>
-
-  use res <- result.try(string.utf_codepoint(i))
-
-  Ok(#(string.from_utf_codepoints([res]), rest))
-}
-
 fn decode_4byte_utf(
   first_byte: String,
   rest: String,
@@ -382,18 +409,27 @@ fn decode_4byte_utf(
     _ -> Error(Nil)
   })
   use #(hd3, rest) <- result.try(parse_hex_digit(rest))
+
+  use <- bool.guard(when: !within_byte_range(hd3), return: Error(Nil))
+
   use #(hd4, rest) <- result.try(parse_hex_digit(rest))
   use rest <- result.try(case rest {
     "%" <> rest -> Ok(rest)
     _ -> Error(Nil)
   })
   use #(hd5, rest) <- result.try(parse_hex_digit(rest))
+
+  use <- bool.guard(when: !within_byte_range(hd5), return: Error(Nil))
+
   use #(hd6, rest) <- result.try(parse_hex_digit(rest))
   use rest <- result.try(case rest {
     "%" <> rest -> Ok(rest)
     _ -> Error(Nil)
   })
   use #(hd7, rest) <- result.try(parse_hex_digit(rest))
+
+  use <- bool.guard(when: !within_byte_range(hd7), return: Error(Nil))
+
   use #(hd8, rest) <- result.try(parse_hex_digit(rest))
 
   use bytes <- result.try(int.base_parse(
@@ -430,6 +466,13 @@ fn decode_4byte_utf(
   use res <- result.try(string.utf_codepoint(i))
 
   Ok(#(string.from_utf_codepoints([res]), rest))
+}
+
+fn within_byte_range(str: String) {
+  case str {
+    "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" -> False
+    _ -> True
+  }
 }
 
 pub fn do_percent_encode(str: String) -> String {

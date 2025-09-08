@@ -1,13 +1,11 @@
 import gleam/bool
 import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
-import gleam/result
+import gleam/option.{Some}
 import gleam/string
 import gleam/uri
 import internal/parser
 import internal/utils
-import splitter
 import types.{type Uri, Uri}
 
 pub fn parse(uri: String) -> Result(Uri, Nil) {
