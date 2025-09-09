@@ -234,6 +234,15 @@ pub fn parse_host_tests() {
       uri.parse("//[2001:0db8:0000:0000:0000:0000:1428:G7ab]")
       |> should.be_error
     }),
+    it("ipvFuture parse", fn() {
+      uri.parse("//[v9.abc:def]")
+      |> should.equal(Ok(Uri(..types.empty_uri, host: Some("v9.abc:def"))))
+      uri.parse("//[v9b.abc:def]")
+      |> should.equal(Ok(Uri(..types.empty_uri, host: Some("v9b.abc:def"))))
+
+      uri.parse("//[vz.abc:def]") |> should.be_error
+      uri.parse("//[va1.abc:d@ef]") |> should.be_error
+    }),
   ])
 }
 
@@ -840,31 +849,26 @@ pub fn merge_tests() {
       let uri1 = uri.parse("http://google.com/weebl/eh") |> should.be_ok
       let uri2 = uri.parse("baz") |> should.be_ok
       uri.merge(uri1, uri2)
-      |> echo
       |> should.equal(uri.parse("http://google.com/weebl/baz"))
       let uri1 = uri.parse("http://google.com/weebl/") |> should.be_ok
       let uri2 = uri.parse("baz") |> should.be_ok
       uri.merge(uri1, uri2)
-      |> echo
       |> should.equal(uri.parse("http://google.com/weebl/baz"))
       let uri1 = uri.parse("http://google.com") |> should.be_ok
       let uri2 = uri.parse("baz") |> should.be_ok
       uri.merge(uri1, uri2)
-      |> echo
       |> should.equal(uri.parse("http://google.com/baz"))
     }),
     it("base with relative segments merge", fn() {
       let uri1 = uri.parse("http://google.com") |> should.be_ok
       let uri2 = uri.parse("/.././bob/../../../baz") |> should.be_ok
       uri.merge(uri1, uri2)
-      |> echo
       |> should.equal(uri.parse("http://google.com/baz"))
     }),
     it("base with empty uri merge", fn() {
       let uri1 = uri.parse("http://google.com/weebl/bob") |> should.be_ok
       let uri2 = uri.parse("") |> should.be_ok
       uri.merge(uri1, uri2)
-      |> echo
       |> should.equal(uri.parse("http://google.com/weebl/bob"))
     }),
 
@@ -872,24 +876,20 @@ pub fn merge_tests() {
       let uri1 = uri.parse("http://google.com/weebl/bob") |> should.be_ok
       let uri2 = uri.parse("#fragment") |> should.be_ok
       uri.merge(uri1, uri2)
-      |> echo
       |> should.equal(uri.parse("http://google.com/weebl/bob#fragment"))
     }),
     it("base with query merge", fn() {
       let uri1 = uri.parse("http://google.com/weebl/bob") |> should.be_ok
       let uri2 = uri.parse("?query") |> should.be_ok
       uri.merge(uri1, uri2)
-      |> echo
       |> should.equal(uri.parse("http://google.com/weebl/bob?query"))
       let uri1 = uri.parse("http://google.com/weebl/bob?query1") |> should.be_ok
       let uri2 = uri.parse("?query2") |> should.be_ok
       uri.merge(uri1, uri2)
-      |> echo
       |> should.equal(uri.parse("http://google.com/weebl/bob?query2"))
       let uri1 = uri.parse("http://google.com/weebl/bob?query1") |> should.be_ok
       let uri2 = uri.parse("") |> should.be_ok
       uri.merge(uri1, uri2)
-      |> echo
       |> should.equal(uri.parse("http://google.com/weebl/bob?query1"))
     }),
   ])
@@ -1185,19 +1185,17 @@ pub fn equivalence_tests() {
       uri.are_equivalent(uri1, uri2) |> should.be_true
 
       let uri1 = uri.parse("http://example.com") |> should.be_ok
-      let uri2 = uri.parse("HTTP://EX%41MPLE.COM") |> should.be_ok |> echo
+      let uri2 = uri.parse("HTTP://EX%41MPLE.COM") |> should.be_ok
       uri.are_equivalent(uri1, uri2) |> should.be_true
 
       let uri1 = uri.parse("http://example.com/a/b/c") |> should.be_ok
-      let uri2 =
-        uri.parse("HTTP://EXaMPLE.COM/a/d/../b/e/../c") |> should.be_ok |> echo
+      let uri2 = uri.parse("HTTP://EXaMPLE.COM/a/d/../b/e/../c") |> should.be_ok
       uri.are_equivalent(uri1, uri2) |> should.be_true
 
       let uri1 = uri.parse("http://example.com/a/b/c") |> should.be_ok
       let uri2 =
         uri.parse("HTTP://EXaMPLE.COM/a/../../../../a/b/e/../c")
         |> should.be_ok
-        |> echo
       uri.are_equivalent(uri1, uri2) |> should.be_true
     }),
   ])

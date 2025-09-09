@@ -153,7 +153,7 @@ fn do_remove_dot_segments(path: String, acc: String) -> String {
 }
 
 fn remove_segment(path: String) -> String {
-  path |> echo |> string.reverse |> do_remove_segment |> string.reverse
+  path |> string.reverse |> do_remove_segment |> string.reverse
 }
 
 fn do_remove_segment(path: String) -> String {
@@ -295,7 +295,6 @@ fn do_percent_decode(
         _ -> {
           case int.bitwise_and(char, 224) {
             192 -> {
-              "2bytes" |> echo
               use #(char, rest) <- result.try(decode_2byte_utf(hd1 <> hd2, rest))
 
               do_percent_decode(splitter, rest, acc <> before <> char)

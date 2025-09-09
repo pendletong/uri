@@ -165,7 +165,7 @@ fn parse_empty(str: String) -> Result(#(Uri, String), Nil) {
 fn parse_authority(str: String) -> Result(#(Uri, String), Nil) {
   case str {
     "//" <> rest -> {
-      parse_authority_part(rest) |> echo
+      parse_authority_part(rest)
     }
     _ -> Error(Nil)
   }
@@ -363,7 +363,38 @@ fn parse_h16_colon(str: String) {
 }
 
 fn parse_ipfuture(str: String) {
-  Error(Nil)
+  case str {
+    "v" <> rest -> {
+      use #(v, rest) <- result.try(get_multiple(utils.parse_hex_digit, rest))
+
+      case rest {
+        "." <> rest -> {
+          use #(i, rest) <- result.try(get_multiple(
+            fn(str) {
+              list.fold_until(
+                [
+                  parse_unreserved,
+                  parse_sub_delim,
+                  fn(str: String) {
+                    case str {
+                      ":" as l <> rest -> Ok(#(l, rest))
+                      _ -> Error(Nil)
+                    }
+                  },
+                ],
+                Error(Nil),
+                get_parser_fn(str),
+              )
+            },
+            rest,
+          ))
+          Ok(#("v" <> v <> "." <> i, rest))
+        }
+        _ -> Error(Nil)
+      }
+    }
+    _ -> Error(Nil)
+  }
 }
 
 fn get_multiple(
@@ -491,7 +522,7 @@ fn do_parse_pchar_nc(str: String) {
 fn parse_reg_name(str: String) {
   // can't error
 
-  case do_parse_reg_name(str, "") |> echo {
+  case do_parse_reg_name(str, "") {
     Error(Nil) -> Ok(#("", str))
     Ok(#(reg_name, rest)) -> Ok(#(reg_name, rest))
   }
