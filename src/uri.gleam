@@ -4,9 +4,9 @@ import gleam/list
 import gleam/option.{Some}
 import gleam/string
 import gleam/uri
-import types.{type Uri, Uri}
 import uri/internal/parser
 import uri/internal/utils
+import uri/types.{type Uri, Uri}
 
 /// Parses a string to the RFC3986 standard.
 /// `Error` is returned if it fails parsing.

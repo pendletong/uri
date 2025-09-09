@@ -7,7 +7,7 @@ import gleam/string
 import splitter
 import uri/internal/utils
 
-import types.{type Uri, Uri, empty_uri}
+import uri/types.{type Uri, Uri, empty_uri}
 
 pub fn parse(uri: String) -> Result(Uri, Nil) {
   case parse_scheme(uri) {

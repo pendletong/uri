@@ -2,8 +2,8 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleeunit/should
 import startest.{describe, it}
-import types.{Uri, empty_uri}
 import uri
+import uri/types.{Uri, empty_uri}
 
 pub fn main() {
   startest.run(startest.default_config())

@@ -5,7 +5,7 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
 import splitter.{type Splitter}
-import types.{type Uri, Uri}
+import uri/types.{type Uri, Uri}
 
 pub const scheme_port = [
   #("http", 80),
