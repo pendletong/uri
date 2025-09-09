@@ -3,8 +3,8 @@
 
 Uri (RFC 3986) library for Gleam
 
-[![Package Version](https://img.shields.io/hexpm/v/uri)](https://hex.pm/packages/uri)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/uri/)
+[![Package Version](https://img.shields.io/hexpm/v/gluri)](https://hex.pm/packages/gluri)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/gluri/)
 
 ```sh
 gleam add uri@1
