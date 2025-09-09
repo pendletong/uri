@@ -4,9 +4,9 @@
 // import splitter
 // import types.{Uri}
 
-// import uri
+import gluri as uri
 
 pub fn main() {
-  // uri.parse_query("a+c=1%23&b=2") |> echo
+  uri.parse("http://my_host.com") |> echo
   Nil
 }

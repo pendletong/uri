@@ -4,10 +4,10 @@ import gleam/list.{Continue, Stop}
 import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
+import gluri/internal/utils
 import splitter
-import uri/internal/utils
 
-import uri/types.{type Uri, Uri, empty_uri}
+import gluri/types.{type Uri, Uri, empty_uri}
 
 pub fn parse(uri: String) -> Result(Uri, Nil) {
   case parse_scheme(uri) {

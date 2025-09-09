@@ -4,8 +4,8 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
+import gluri/types.{type Uri, Uri}
 import splitter.{type Splitter}
-import uri/types.{type Uri, Uri}
 
 pub const scheme_port = [
   #("http", 80),
