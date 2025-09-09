@@ -4,14 +4,53 @@ import gleam/list
 import gleam/option.{Some}
 import gleam/string
 import gleam/uri
-import internal/parser
-import internal/utils
 import types.{type Uri, Uri}
+import uri/internal/parser
+import uri/internal/utils
 
+/// Parses a string to the RFC3986 standard.
+/// `Error` is returned if it fails parsing.
+///
+/// ## Examples
+///
+/// ```gleam
+/// parse("https://me@host.com:9999/path?q=1#fragment")
+/// // -> Ok(
+/// //   Uri(
+/// //     scheme: Some("https"),
+/// //     userinfo: Some("me"),
+/// //     host: Some("host.com"),
+/// //     port: Some(9999),
+/// //     path: "/path",
+/// //     query: Some("q=1"),
+/// //     fragment: Some("fragment")
+/// //   )
+/// // )
+/// ```
+///
 pub fn parse(uri: String) -> Result(Uri, Nil) {
   parser.parse(uri)
 }
 
+/// Encodes a `Uri` value as a URI string.
+///
+///
+/// ## Examples
+///
+/// ```gleam
+/// let uri = Uri(
+///      scheme: Some("https"),
+///      userinfo: Some("me"),
+///      host: Some("host.com"),
+///      port: Some(9999),
+///      path: "/path",
+///      query: Some("q=1"),
+///      fragment: Some("fragment")
+///    )
+/// to_string(uri)
+/// // -> "https://me@host.com:9999/path?q=1#fragment"
+/// ```
+///
 pub fn to_string(uri: Uri) -> String {
   let uri_string = case uri.scheme {
     Some(scheme) -> scheme <> ":"
@@ -52,19 +91,58 @@ pub fn to_string(uri: Uri) -> String {
   uri_string
 }
 
+/// Resolves a URI with respect to the given base URI.
+///
+/// The base URI must be an absolute URI or this function will return an error.
+/// The algorithm for merging uris is as described in
+/// [RFC 3986](https://tools.ietf.org/html/rfc3986#section-5.2).
+///
 pub fn merge(base: Uri, relative: Uri) -> Result(Uri, Nil) {
   utils.merge(base, relative)
 }
 
-pub fn normalize(uri: Uri) -> Uri {
-  normalise(uri)
-}
-
+/// Normalises the `Uri`
+///
+/// This follows the normalisation process in RFC3986
+/// - Case normalisation (scheme/host -> lowercase, percent-encoding -> uppercase)
+/// - Percent-encoding normalisation (removal of non-necessary encoding)
+/// - Path segement normalisation (processing of /, .. and .)
+/// - Scheme based normalisation (removal of default ports for http/https/ftp/ws/wss, setting empty path to / for valid http(s) uri)
+///
+/// ## Examples
+///
+/// ```gleam
+/// let uri = Uri(
+///      scheme: Some("Https"),
+///      userinfo: None,
+///      host: Some("host.com"),
+///      port: Some(443),
+///      path: "",
+///      query: Some("q=1"),
+///      fragment: Some("fragment")
+///    )
+/// normalise(uri)
+/// // -> "https://host.com/?q=1#fragment"
+/// ```
+///
 pub fn normalise(uri: Uri) -> Uri {
   utils.normalise(uri)
 }
 
-pub fn are_equivalent(uri1: Uri, uri2: Uri) {
+/// Determines whether 2 Uris are equivalent, i.e. denote the same endpoint
+///
+/// This will perform normalisation if the Uris are not exactly the same
+///
+/// ## Examples
+///
+/// ```gleam
+/// let uri = parse("Https://host.com:443?q=1#fragment")
+/// let uri2 = parse("https://HOST.com/?q=1#fragment")
+/// are_equivalent(uri, uri2)
+/// // -> True
+/// ```
+///
+pub fn are_equivalent(uri1: Uri, uri2: Uri) -> Bool {
   use <- bool.guard(when: uri1 == uri2, return: True)
 
   let uri1 = normalise(uri1)
@@ -73,6 +151,7 @@ pub fn are_equivalent(uri1: Uri, uri2: Uri) {
   uri1 == uri2
 }
 
+/// Converts a uri library Uri value to the Gleam stdlib Uri value
 pub fn to_uri(uri: Uri) -> uri.Uri {
   uri.Uri(
     uri.scheme,
@@ -85,6 +164,7 @@ pub fn to_uri(uri: Uri) -> uri.Uri {
   )
 }
 
+/// Converts a Gleam stdlib Uri value to a uri library Uri value
 pub fn from_uri(uri: uri.Uri) -> Uri {
   Uri(
     uri.scheme,
@@ -97,14 +177,46 @@ pub fn from_uri(uri: uri.Uri) -> Uri {
   )
 }
 
+/// Decodes a percent encoded string.
+///
+/// Will return an `Error` if the encoding is not valid
+///
+/// ## Examples
+///
+/// ```gleam
+/// percent_decode("This%20is%20worth%20%E2%82%AC1+")
+/// // -> Ok("This is worth €1+")
+/// ```
+///
 pub fn percent_decode(value: String) -> Result(String, Nil) {
   utils.percent_decode(value)
 }
 
+/// Encodes a string into a percent encoded string.
+///
+/// ## Examples
+///
+/// ```gleam
+/// percent_encode("This is worth €1+")
+/// // -> "This%20is%20worth%20%E2%82%AC1+"
+/// ```
+///
 pub fn percent_encode(value: String) -> String {
   utils.do_percent_encode(value)
 }
 
+/// Encodes a list of key/value pairs into a URI query string
+///
+/// Empty keys/values are encoded so would need to be filtered before
+/// passing into this function if required
+///
+/// ## Examples
+///
+/// ```gleam
+/// query_to_string([#("first", "1"), #("", ""), #("last", "2")])
+/// // -> "first=1&=&last=2"
+/// ```
+///
 pub fn query_to_string(query: List(#(String, String))) -> String {
   list.map(query, fn(q) {
     [utils.do_percent_encode(q.0), "=", utils.do_percent_encode(q.1)]
@@ -114,6 +226,22 @@ pub fn query_to_string(query: List(#(String, String))) -> String {
   |> string.concat
 }
 
+/// Takes a query string and returns a list of key/value pairs
+///
+/// As this decodes the keys & values an `Error` may be returned if the
+/// encoding is invalid
+///
+/// As in query_to_string entries with blank key and values are returned
+/// Empty entries (i.e. without a = separator) are omitted as they cannot
+/// be generated using query_to_string
+///
+/// ## Examples
+///
+/// ```gleam
+/// parse_query("first=1&=&last=2")
+/// // -> Ok([#("first", "1"), #("", ""), #("last", "2")])
+/// ```
+///
 pub fn parse_query(query: String) -> Result(List(#(String, String)), Nil) {
   parser.parse_query_parts(query)
 }

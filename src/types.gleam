@@ -12,4 +12,5 @@ pub type Uri {
   )
 }
 
+/// Blank Uri value
 pub const empty_uri = Uri(None, None, None, None, "", None, None)

@@ -12,8 +12,10 @@ gleam add uri@1
 ```gleam
 import uri
 
-pub fn main() -> Nil {
-  // TODO: An example of the project in use
+pub fn main() {
+  let uri = uri.parse("http://example.com:8080/path?q=1")
+      |> result.unwrap(types.empty_uri)
+  uri.normalise(uri) |> uri.to_string |> echo
 }
 ```
 

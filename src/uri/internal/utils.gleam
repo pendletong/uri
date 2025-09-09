@@ -90,11 +90,32 @@ pub fn normalise(uri: Uri) -> Uri {
   let port = uri.port |> scheme_normalisation(scheme)
   let host =
     uri.host |> option.map(string.lowercase) |> option.map(percent_normaliser)
-  let path = uri.path |> percent_normaliser |> remove_dot_segments
+  let path =
+    uri.path
+    |> percent_normaliser
+    |> remove_dot_segments
+    |> path_normalise(scheme, host)
   let query = uri.query |> option.map(percent_normaliser)
   let fragment = uri.fragment |> option.map(percent_normaliser)
 
   Uri(scheme, userinfo, host, port, path, query, fragment)
+}
+
+pub fn path_normalise(str: String, scheme: Option(String), host: Option(String)) {
+  case str {
+    "" -> {
+      case scheme {
+        Some("http") | Some("https") -> {
+          case host {
+            Some(_) -> "/"
+            _ -> ""
+          }
+        }
+        _ -> ""
+      }
+    }
+    _ -> str
+  }
 }
 
 pub fn scheme_normalisation(

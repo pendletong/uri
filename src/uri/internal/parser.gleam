@@ -4,8 +4,8 @@ import gleam/list.{Continue, Stop}
 import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
-import internal/utils
 import splitter
+import uri/internal/utils
 
 import types.{type Uri, Uri, empty_uri}
 
