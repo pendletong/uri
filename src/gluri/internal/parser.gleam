@@ -4,10 +4,9 @@ import gleam/list.{Continue, Stop}
 import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
+import gleam/uri.{type Uri, Uri, empty}
 import gluri/internal/utils
 import splitter
-
-import gluri/types.{type Uri, Uri, empty_uri}
 
 pub fn parse(uri: String) -> Result(Uri, Nil) {
   case parse_scheme(uri) {
@@ -42,9 +41,9 @@ fn parse_query(str: String) -> Result(#(Uri, String), Nil) {
   case str {
     "?" <> rest -> {
       let #(query, rest) = get_multiple_optional(parse_query_fragment, rest)
-      Ok(#(Uri(..empty_uri, query: Some(query)), rest))
+      Ok(#(Uri(..empty, query: Some(query)), rest))
     }
-    _ -> Ok(#(empty_uri, str))
+    _ -> Ok(#(empty, str))
   }
 }
 
@@ -52,9 +51,9 @@ fn parse_fragment(str: String) -> Result(#(Uri, String), Nil) {
   case str {
     "#" <> rest -> {
       let #(fragment, rest) = get_multiple_optional(parse_query_fragment, rest)
-      Ok(#(Uri(..empty_uri, fragment: Some(fragment)), rest))
+      Ok(#(Uri(..empty, fragment: Some(fragment)), rest))
     }
-    _ -> Ok(#(empty_uri, str))
+    _ -> Ok(#(empty, str))
   }
 }
 

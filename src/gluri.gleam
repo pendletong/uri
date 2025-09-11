@@ -3,10 +3,9 @@ import gleam/int
 import gleam/list
 import gleam/option.{Some}
 import gleam/string
-import gleam/uri
+import gleam/uri.{type Uri, Uri}
 import gluri/internal/parser
 import gluri/internal/utils
-import gluri/types.{type Uri, Uri}
 
 /// Parses a string to the RFC3986 standard.
 /// `Error` is returned if it fails parsing.
@@ -149,32 +148,6 @@ pub fn are_equivalent(uri1: Uri, uri2: Uri) -> Bool {
   let uri2 = normalise(uri2)
 
   uri1 == uri2
-}
-
-/// Converts a uri library Uri value to the Gleam stdlib Uri value
-pub fn to_uri(uri: Uri) -> uri.Uri {
-  uri.Uri(
-    uri.scheme,
-    uri.userinfo,
-    uri.host,
-    uri.port,
-    uri.path,
-    uri.query,
-    uri.fragment,
-  )
-}
-
-/// Converts a Gleam stdlib Uri value to a uri library Uri value
-pub fn from_uri(uri: uri.Uri) -> Uri {
-  Uri(
-    uri.scheme,
-    uri.userinfo,
-    uri.host,
-    uri.port,
-    uri.path,
-    uri.query,
-    uri.fragment,
-  )
 }
 
 /// Decodes a percent encoded string.

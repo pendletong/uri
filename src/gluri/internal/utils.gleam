@@ -4,7 +4,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
-import gluri/types.{type Uri, Uri}
+import gleam/uri.{type Uri, Uri}
 import splitter.{type Splitter}
 
 pub const scheme_port = [
