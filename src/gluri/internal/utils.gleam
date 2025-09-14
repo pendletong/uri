@@ -154,15 +154,23 @@ pub fn parse_this_then(
   to_parse str: String,
   with parsers: List(fn(String) -> Result(#(String, String), Nil)),
 ) -> Result(#(String, String), Nil) {
-  list.fold_until(parsers, Ok(#("", str)), fn(acc, parser) {
-    let assert Ok(#(res, str)) = acc
-    case parser(str) {
-      Ok(#(res2, rest)) -> {
-        Continue(Ok(#(res <> res2, rest)))
+  do_parse_this_then(str, "", parsers)
+}
+
+fn do_parse_this_then(
+  to_parse str: String,
+  from initial: String,
+  with parsers: List(fn(String) -> Result(#(String, String), Nil)),
+) -> Result(#(String, String), Nil) {
+  case parsers {
+    [] -> Ok(#(initial, str))
+    [head, ..tail] -> {
+      case head(str) {
+        Ok(#(res, rest)) -> do_parse_this_then(rest, initial <> res, tail)
+        Error(_) -> Error(Nil)
       }
-      Error(Nil) -> Stop(Error(Nil))
     }
-  })
+  }
 }
 
 pub fn parse_multiple(

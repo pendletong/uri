@@ -421,39 +421,73 @@ fn parse_ipv4address(str: String) {
   Ok(#(oct1 <> "." <> oct2 <> "." <> oct3 <> "." <> oct4, rest))
 }
 
-const octet_matches = [
-  ["2", "5", "012345"],
-  ["2", "01234", "0123456789"],
-  ["1", "0123456789", "0123456789"],
-  ["123456789", "0123456789"],
-  ["0123456789"],
-]
-
 // dec-octet     = DIGIT                 ; 0-9
 //              / %x31-39 DIGIT         ; 10-99
 //              / "1" 2DIGIT            ; 100-199
 //              / "2" %x30-34 DIGIT     ; 200-249
 //              / "25" %x30-35          ; 250-255
-fn parse_dec_octet(str: String) -> Result(#(String, String), Nil) {
-  list.fold_until(octet_matches, Error(Nil), fn(_, chars) {
-    case
-      list.fold_until(chars, #("", str), fn(acc, charset) {
-        let #(octet, str) = acc
-        case string.pop_grapheme(str) {
-          Error(_) -> Stop(#("", ""))
-          Ok(#(char, rest)) -> {
-            case string.contains(charset, char) {
-              True -> Continue(#(octet <> char, rest))
-              False -> Stop(#("", ""))
-            }
+pub fn parse_dec_octet(str: String) -> Result(#(String, String), Nil) {
+  try_parsers(
+    [
+      parse_this_then(_, [
+        fn(str) {
+          case str {
+            "2" as l <> rest -> Ok(#(l, rest))
+            _ -> Error(Nil)
           }
-        }
-      })
-    {
-      #("", _) -> Continue(Error(Nil))
-      #(octet, rest) -> Stop(Ok(#(octet, rest)))
-    }
-  })
+        },
+        fn(str) {
+          case str {
+            "5" as l <> rest -> Ok(#(l, rest))
+            _ -> Error(Nil)
+          }
+        },
+        fn(str) {
+          case str {
+            "0" as l <> rest
+            | "1" as l <> rest
+            | "2" as l <> rest
+            | "3" as l <> rest
+            | "4" as l <> rest
+            | "5" as l <> rest -> Ok(#(l, rest))
+            _ -> Error(Nil)
+          }
+        },
+      ]),
+      parse_this_then(_, [
+        fn(str) {
+          case str {
+            "2" as l <> rest -> Ok(#(l, rest))
+            _ -> Error(Nil)
+          }
+        },
+        fn(str) {
+          case str {
+            "0" as l <> rest
+            | "1" as l <> rest
+            | "2" as l <> rest
+            | "3" as l <> rest
+            | "4" as l <> rest -> Ok(#(l, rest))
+            _ -> Error(Nil)
+          }
+        },
+        parse_digit,
+      ]),
+      parse_this_then(_, [
+        fn(str) {
+          case str {
+            "1" as l <> rest -> Ok(#(l, rest))
+            _ -> Error(Nil)
+          }
+        },
+        parse_digit,
+        parse_digit,
+      ]),
+      parse_this_then(_, [parse_digit_nz, parse_digit]),
+      parse_digit,
+    ],
+    str,
+  )
 }
 
 // reg-name      = *( unreserved / pct-encoded / sub-delims )
@@ -715,6 +749,21 @@ fn parse_digit(str: String) -> Result(#(String, String), Nil) {
   case str {
     "0" as l <> rest
     | "1" as l <> rest
+    | "2" as l <> rest
+    | "3" as l <> rest
+    | "4" as l <> rest
+    | "5" as l <> rest
+    | "6" as l <> rest
+    | "7" as l <> rest
+    | "8" as l <> rest
+    | "9" as l <> rest -> Ok(#(l, rest))
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_digit_nz(str: String) -> Result(#(String, String), Nil) {
+  case str {
+    "1" as l <> rest
     | "2" as l <> rest
     | "3" as l <> rest
     | "4" as l <> rest

@@ -12,6 +12,28 @@ pub fn main() {
 
   parse_benchmark()
   // reg_name_benchmark()
+  // ip_benchmark()
+}
+
+@target(erlang)
+pub fn ip_benchmark() {
+  benchmark.run(
+    [
+      benchmark.Function("ip_benchmark", fn(data) {
+        fn() {
+          let _ = parser.parse_dec_octet(data)
+          Nil
+        }
+      }),
+    ],
+    [
+      benchmark.Data("173", "173"),
+      benchmark.Data("5", "5"),
+      benchmark.Data("200", "200"),
+      benchmark.Data("255", "255"),
+      benchmark.Data("fail", "2b"),
+    ],
+  )
 }
 
 @target(erlang)

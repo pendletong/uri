@@ -11,3 +11,4 @@
 ## v2.0.1
 
 - Improved parsing performance slightly and reduced memory usage up to 50%
+- Significantly improved IPV4 parsing performance
