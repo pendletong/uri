@@ -603,15 +603,31 @@ fn parse_userinfo(
 }
 
 fn parse_scheme(str: String) -> Result(#(Uri, String), Nil) {
-  case parse_alpha(str) {
-    Ok(#(first, rest)) -> {
-      case do_parse_scheme(rest, first) {
-        Error(_) -> Error(Nil)
-        Ok(#(scheme, rest)) ->
-          Ok(#(Uri(Some(scheme), None, None, None, "", None, None), rest))
+  case str {
+    "http:" <> rest ->
+      Ok(#(Uri(Some("http"), None, None, None, "", None, None), rest))
+    "https:" <> rest ->
+      Ok(#(Uri(Some("https"), None, None, None, "", None, None), rest))
+    "ftp:" <> rest ->
+      Ok(#(Uri(Some("ftp"), None, None, None, "", None, None), rest))
+    "file:" <> rest ->
+      Ok(#(Uri(Some("file"), None, None, None, "", None, None), rest))
+    "ws:" <> rest ->
+      Ok(#(Uri(Some("ws"), None, None, None, "", None, None), rest))
+    "wss:" <> rest ->
+      Ok(#(Uri(Some("wss"), None, None, None, "", None, None), rest))
+    _ -> {
+      case parse_alpha(str) {
+        Ok(#(first, rest)) -> {
+          case do_parse_scheme(rest, first) {
+            Error(_) -> Error(Nil)
+            Ok(#(scheme, rest)) ->
+              Ok(#(Uri(Some(scheme), None, None, None, "", None, None), rest))
+          }
+        }
+        _ -> Error(Nil)
       }
     }
-    _ -> Error(Nil)
   }
 }
 
