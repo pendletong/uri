@@ -5,8 +5,9 @@ import gleam/result
 import gleam/string
 import gleam/uri.{type Uri, Uri, empty}
 import gluri/internal/utils.{
-  combine_uris, parse_hex_digit, parse_hex_digits, parse_min_max, parse_optional,
-  parse_this_then,
+  combine_uris, parse_hex_digit, parse_hex_digits, parse_min_max, parse_multiple,
+  parse_optional, parse_optional_result, parse_this_then, percent_decode,
+  try_parsers,
 }
 import splitter
 
@@ -47,7 +48,7 @@ pub fn parse(uri: String) -> Result(Uri, Nil) {
 //              / path-rootless
 //              / path-empty
 fn parse_hier_part(str: String) -> Result(#(Uri, String), Nil) {
-  utils.try_parsers(
+  try_parsers(
     [
       parse_authority,
       parse_path_absolute,
@@ -63,7 +64,7 @@ fn parse_query(str: String) -> Result(#(Uri, String), Nil) {
   case str {
     "?" <> rest -> {
       let #(query, rest) =
-        utils.get_multiple_optional(parse_query_fragment, rest)
+        parse_optional(rest, parse_multiple(_, parse_query_fragment))
       Ok(#(Uri(..empty, query: Some(query)), rest))
     }
     _ -> Ok(#(empty, str))
@@ -75,7 +76,7 @@ fn parse_fragment(str: String) -> Result(#(Uri, String), Nil) {
   case str {
     "#" <> rest -> {
       let #(fragment, rest) =
-        utils.get_multiple_optional(parse_query_fragment, rest)
+        parse_optional(rest, parse_multiple(_, parse_query_fragment))
       Ok(#(Uri(..empty, fragment: Some(fragment)), rest))
     }
     _ -> Ok(#(empty, str))
@@ -87,7 +88,7 @@ fn parse_fragment(str: String) -> Result(#(Uri, String), Nil) {
 //              / path-noscheme
 //              / path-empty
 fn parse_relative_part(str: String) -> Result(#(Uri, String), Nil) {
-  utils.try_parsers(
+  try_parsers(
     [
       parse_authority,
       parse_path_absolute,
@@ -136,7 +137,7 @@ fn do_parse_scheme(
     ":" <> rest -> Ok(#(scheme, rest))
     "" -> Error(Nil)
     _ -> {
-      use #(part, rest) <- result.try(utils.try_parsers(
+      use #(part, rest) <- result.try(try_parsers(
         [
           parse_alpha,
           parse_digit,
@@ -195,7 +196,7 @@ fn parse_userinfo(
     "@" <> rest -> Ok(#(userinfo, rest))
     "" -> Error(Nil)
     _ -> {
-      use #(part, rest) <- result.try(utils.try_parsers(
+      use #(part, rest) <- result.try(try_parsers(
         [
           parse_unreserved,
           parse_pct_encoded,
@@ -216,7 +217,7 @@ fn parse_userinfo(
 
 // host          = IP-literal / IPv4address / reg-name
 fn parse_host(str: String) {
-  utils.try_parsers([parse_ip_literal, parse_ipv4address, parse_reg_name], str)
+  try_parsers([parse_ip_literal, parse_ipv4address, parse_reg_name], str)
 }
 
 // port          = *DIGIT
@@ -233,7 +234,7 @@ fn parse_port(str: String) {
 fn parse_ip_literal(str: String) {
   case str {
     "[" <> rest -> {
-      use #(ip, rest) <- result.try(utils.try_parsers(
+      use #(ip, rest) <- result.try(try_parsers(
         [parse_ipv6, parse_ipvfuture],
         rest,
       ))
@@ -250,13 +251,13 @@ fn parse_ip_literal(str: String) {
 fn parse_ipvfuture(str: String) {
   case str {
     "v" <> rest -> {
-      use #(v, rest) <- result.try(utils.get_multiple(parse_hex_digit, rest))
+      use #(v, rest) <- result.try(parse_multiple(rest, parse_hex_digit))
 
       case rest {
         "." <> rest -> {
-          use #(i, rest) <- result.try(utils.get_multiple(
-            fn(str) {
-              utils.try_parsers(
+          use #(i, rest) <- result.try(
+            parse_multiple(rest, fn(str) {
+              try_parsers(
                 [
                   parse_unreserved,
                   parse_sub_delim,
@@ -269,9 +270,8 @@ fn parse_ipvfuture(str: String) {
                 ],
                 str,
               )
-            },
-            rest,
-          ))
+            }),
+          )
           Ok(#("v" <> v <> "." <> i, rest))
         }
         _ -> Error(Nil)
@@ -291,72 +291,70 @@ fn parse_ipvfuture(str: String) {
 //              / [ *5( h16 ":" ) h16 ] "::"              h16
 //              / [ *6( h16 ":" ) h16 ] "::"
 fn parse_ipv6(str: String) {
-  utils.try_parsers(
+  try_parsers(
     [
-      parse_this_then([parse_min_max(_, 6, 6, parse_h16_colon), parse_ls32], _),
-      parse_this_then(
-        [parse_colons, parse_min_max(_, 5, 5, parse_h16_colon), parse_ls32],
-        _,
-      ),
-      parse_this_then(
-        [
-          parse_optional(_, parse_h16),
-          parse_colons,
-          parse_min_max(_, 4, 4, parse_h16_colon),
-          parse_ls32,
-        ],
-        _,
-      ),
-      parse_this_then(
-        [
-          parse_optional(_, parse_this_then([parse_h16s(_, 1), parse_h16], _)),
-          parse_colons,
-          parse_min_max(_, 3, 3, parse_h16_colon),
-          parse_ls32,
-        ],
-        _,
-      ),
-      parse_this_then(
-        [
-          parse_optional(_, parse_this_then([parse_h16s(_, 2), parse_h16], _)),
-          parse_colons,
-          parse_min_max(_, 2, 2, parse_h16_colon),
-          parse_ls32,
-        ],
-        _,
-      ),
-      parse_this_then(
-        [
-          parse_optional(_, parse_this_then([parse_h16s(_, 3), parse_h16], _)),
-          parse_colons,
-          parse_min_max(_, 1, 1, parse_h16_colon),
-          parse_ls32,
-        ],
-        _,
-      ),
-      parse_this_then(
-        [
-          parse_optional(_, parse_this_then([parse_h16s(_, 4), parse_h16], _)),
-          parse_colons,
-          parse_ls32,
-        ],
-        _,
-      ),
-      parse_this_then(
-        [
-          parse_optional(_, parse_this_then([parse_h16s(_, 5), parse_h16], _)),
-          parse_colons,
-          parse_h16,
-        ],
-        _,
-      ),
-      parse_this_then(
-        [
-          parse_optional(_, parse_this_then([parse_h16s(_, 6), parse_h16], _)),
-          parse_colons,
-        ],
-        _,
-      ),
+      parse_this_then(_, [parse_min_max(_, 6, 6, parse_h16_colon), parse_ls32]),
+      parse_this_then(_, [
+        parse_colons,
+        parse_min_max(_, 5, 5, parse_h16_colon),
+        parse_ls32,
+      ]),
+      parse_this_then(_, [
+        parse_optional_result(_, parse_h16),
+        parse_colons,
+        parse_min_max(_, 4, 4, parse_h16_colon),
+        parse_ls32,
+      ]),
+      parse_this_then(_, [
+        parse_optional_result(
+          _,
+          parse_this_then(_, [parse_h16s(_, 1), parse_h16]),
+        ),
+        parse_colons,
+        parse_min_max(_, 3, 3, parse_h16_colon),
+        parse_ls32,
+      ]),
+      parse_this_then(_, [
+        parse_optional_result(
+          _,
+          parse_this_then(_, [parse_h16s(_, 2), parse_h16]),
+        ),
+        parse_colons,
+        parse_min_max(_, 2, 2, parse_h16_colon),
+        parse_ls32,
+      ]),
+      parse_this_then(_, [
+        parse_optional_result(
+          _,
+          parse_this_then(_, [parse_h16s(_, 3), parse_h16]),
+        ),
+        parse_colons,
+        parse_min_max(_, 1, 1, parse_h16_colon),
+        parse_ls32,
+      ]),
+      parse_this_then(_, [
+        parse_optional_result(
+          _,
+          parse_this_then(_, [parse_h16s(_, 4), parse_h16]),
+        ),
+        parse_colons,
+        parse_ls32,
+      ]),
+      parse_this_then(_, [
+        parse_optional_result(
+          _,
+          parse_this_then(_, [parse_h16s(_, 5), parse_h16]),
+        ),
+        parse_colons,
+        parse_h16,
+      ]),
+      parse_this_then(_, [
+        parse_optional_result(
+          _,
+          parse_this_then(_, [parse_h16s(_, 6), parse_h16]),
+        ),
+        parse_colons,
+      ]),
     ],
     str,
   )
@@ -399,7 +397,7 @@ fn parse_h16_colon(str: String) {
 
 // ls32          = ( h16 ":" h16 ) / IPv4address
 fn parse_ls32(str: String) -> Result(#(String, String), Nil) {
-  utils.try_parsers([parse_h16_pair, parse_ipv4address], str)
+  try_parsers([parse_h16_pair, parse_ipv4address], str)
 }
 
 // IPv4address   = dec-octet "." dec-octet "." dec-octet "." dec-octet
@@ -470,10 +468,7 @@ pub fn parse_reg_name(str: String) {
 
 fn do_parse_reg_name(str: String, reg_name: String) {
   case
-    utils.try_parsers(
-      [parse_unreserved, parse_pct_encoded, parse_sub_delim],
-      str,
-    )
+    try_parsers([parse_unreserved, parse_pct_encoded, parse_sub_delim], str)
   {
     Error(Nil) | Ok(#("", _)) -> Ok(#(reg_name, str))
     Ok(#(l, rest)) -> do_parse_reg_name(rest, reg_name <> l)
@@ -487,16 +482,16 @@ fn do_parse_reg_name(str: String, reg_name: String) {
 //              / path-empty      ; zero characters
 // path-abempty  = *( "/" segment )
 fn parse_path_abempty(str: String) -> #(String, String) {
-  utils.get_multiple_optional(
-    fn(str) {
+  parse_optional(
+    str,
+    parse_multiple(_, fn(str) {
       case str {
         "/" <> rest -> {
           do_parse_segment(rest, do_parse_pchar, "/")
         }
         _ -> Error(Nil)
       }
-    },
-    str,
+    }),
   )
 }
 
@@ -504,25 +499,24 @@ fn parse_path_abempty(str: String) -> #(String, String) {
 fn parse_path_absolute(str: String) -> Result(#(Uri, String), Nil) {
   case str {
     "/" <> rest -> {
-      use #(seg, rest) <- result.try(
-        parse_optional(rest, parse_this_then(
-          [
+      let #(seg, rest) =
+        parse_optional(
+          rest,
+          parse_this_then(_, [
             do_parse_segment_nz,
-            utils.get_multiple_optional_result(
-              fn(str) {
+            parse_optional_result(
+              _,
+              parse_multiple(_, fn(str) {
                 case str {
                   "/" <> rest -> {
                     do_parse_segment(rest, do_parse_pchar, "/")
                   }
                   _ -> Error(Nil)
                 }
-              },
-              _,
+              }),
             ),
-          ],
-          _,
-        )),
-      )
+          ]),
+        )
 
       Ok(#(Uri(None, None, None, None, "/" <> seg, None, None), rest))
     }
@@ -535,16 +529,16 @@ fn parse_path_noscheme(str: String) -> Result(#(Uri, String), Nil) {
   use #(seg1, rest) <- result.try(do_parse_segment_nz_nc(str))
 
   let #(segs, rest) =
-    utils.get_multiple_optional(
-      fn(str) {
+    parse_optional(
+      rest,
+      parse_multiple(_, fn(str) {
         case str {
           "/" <> rest -> {
             do_parse_segment(rest, do_parse_pchar, "/")
           }
           _ -> Error(Nil)
         }
-      },
-      rest,
+      }),
     )
 
   Ok(#(Uri(None, None, None, None, seg1 <> segs, None, None), rest))
@@ -555,16 +549,16 @@ fn parse_path_rootless(str: String) -> Result(#(Uri, String), Nil) {
   use #(seg1, rest) <- result.try(do_parse_segment_nz(str))
 
   let #(segs, rest) =
-    utils.get_multiple_optional(
-      fn(str) {
+    parse_optional(
+      rest,
+      parse_multiple(_, fn(str) {
         case str {
           "/" <> rest -> {
             do_parse_segment(rest, do_parse_pchar, "/")
           }
           _ -> Error(Nil)
         }
-      },
-      rest,
+      }),
     )
 
   Ok(#(Uri(None, None, None, None, seg1 <> segs, None, None), rest))
@@ -612,7 +606,7 @@ fn do_parse_segment_nz_nc(str: String) {
 
 // pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
 fn do_parse_pchar(str: String) {
-  utils.try_parsers(
+  try_parsers(
     [
       parse_unreserved,
       parse_pct_encoded,
@@ -629,7 +623,7 @@ fn do_parse_pchar(str: String) {
 }
 
 fn do_parse_pchar_without_colon(str: String) {
-  utils.try_parsers(
+  try_parsers(
     [
       parse_unreserved,
       parse_pct_encoded,
@@ -648,7 +642,7 @@ fn do_parse_pchar_without_colon(str: String) {
 // query         = *( pchar / "/" / "?" )
 // fragment      = *( pchar / "/" / "?" )
 fn parse_query_fragment(str: String) {
-  utils.try_parsers(
+  try_parsers(
     [
       do_parse_pchar,
       fn(str: String) {
@@ -679,7 +673,7 @@ fn parse_pct_encoded(str: String) {
 // reserved      = gen-delims / sub-delims
 // gen-delims    = ":" / "/" / "?" / "#" / "[" / "]" / "@"
 fn parse_unreserved(str: String) -> Result(#(String, String), Nil) {
-  utils.try_parsers(
+  try_parsers(
     [
       parse_alpha,
       parse_digit,
@@ -833,8 +827,8 @@ fn do_parse_query_pair(pair: String) -> Result(#(String, String), Nil) {
     Error(_) -> #(pair, "")
     Ok(p) -> p
   }
-  use key <- result.try(utils.percent_decode(string.replace(key, "+", " ")))
-  use val <- result.try(utils.percent_decode(string.replace(val, "+", " ")))
+  use key <- result.try(percent_decode(string.replace(key, "+", " ")))
+  use val <- result.try(percent_decode(string.replace(val, "+", " ")))
 
   Ok(#(key, val))
 }

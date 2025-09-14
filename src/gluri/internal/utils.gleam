@@ -101,11 +101,22 @@ pub fn try_parsers(
   }
 }
 
-pub fn parse_min_max(str, min, max, parse_fn) {
+pub fn parse_min_max(
+  str: f,
+  min: Int,
+  max: Int,
+  parse_fn: fn(f) -> Result(#(String, f), g),
+) -> Result(#(String, f), Nil) {
   do_parse_min_max(str, "", min, max, parse_fn)
 }
 
-pub fn do_parse_min_max(str, acc, min, max, parse_fn) {
+pub fn do_parse_min_max(
+  str: d,
+  acc: String,
+  min: Int,
+  max: Int,
+  parse_fn: fn(d) -> Result(#(String, d), e),
+) -> Result(#(String, d), Nil) {
   case parse_fn(str) {
     Error(_) -> {
       case min > 0 {
@@ -122,17 +133,27 @@ pub fn do_parse_min_max(str, acc, min, max, parse_fn) {
   }
 }
 
-pub fn parse_optional(str, opt_fn) {
+pub fn parse_optional(
+  to_parse str: String,
+  with opt_fn: fn(String) -> Result(#(String, String), Nil),
+) -> #(String, String) {
   case opt_fn(str) {
-    Error(Nil) -> Ok(#("", str))
-    Ok(r) -> Ok(r)
+    Error(Nil) -> #("", str)
+    Ok(r) -> r
   }
 }
 
+pub fn parse_optional_result(
+  to_parse str: String,
+  with opt_fn: fn(String) -> Result(#(String, String), Nil),
+) -> Result(#(String, String), Nil) {
+  parse_optional(str, opt_fn) |> Ok
+}
+
 pub fn parse_this_then(
-  parsers: List(fn(String) -> Result(#(String, String), Nil)),
-  str: String,
-) {
+  to_parse str: String,
+  with parsers: List(fn(String) -> Result(#(String, String), Nil)),
+) -> Result(#(String, String), Nil) {
   list.fold_until(parsers, Ok(#("", str)), fn(acc, parser) {
     let assert Ok(#(res, str)) = acc
     case parser(str) {
@@ -144,37 +165,26 @@ pub fn parse_this_then(
   })
 }
 
-pub fn get_multiple(
-  to_run: fn(String) -> Result(#(String, String), Nil),
-  str: String,
+pub fn parse_multiple(
+  to_parse str: String,
+  with to_run: fn(String) -> Result(#(String, String), Nil),
 ) -> Result(#(String, String), Nil) {
-  case do_get_multiple(to_run, str, "") {
+  case do_parse_multiple(str, to_run, "") {
     Ok(#("", _)) | Error(Nil) -> Error(Nil)
     Ok(#(r, rest)) -> Ok(#(r, rest))
   }
 }
 
-pub fn get_multiple_optional(opt_fn, str: String) {
-  case get_multiple(opt_fn, str) {
-    Error(_) -> #("", str)
-    Ok(r) -> r
-  }
-}
-
-pub fn get_multiple_optional_result(opt_fn, str: String) {
-  get_multiple_optional(opt_fn, str) |> Ok
-}
-
-fn do_get_multiple(
-  to_run: fn(String) -> Result(#(String, String), Nil),
-  str: String,
-  ret: String,
+fn do_parse_multiple(
+  to_parse str: String,
+  with to_run: fn(String) -> Result(#(String, String), Nil),
+  acc ret: String,
 ) -> Result(#(String, String), Nil) {
   case str {
     "" -> Ok(#(ret, str))
     _ ->
       case to_run(str) {
-        Ok(#(r, rest)) -> do_get_multiple(to_run, rest, ret <> r)
+        Ok(#(r, rest)) -> do_parse_multiple(rest, to_run, ret <> r)
         Error(_) -> Ok(#(ret, str))
       }
   }
