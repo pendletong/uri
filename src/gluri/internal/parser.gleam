@@ -176,7 +176,7 @@ fn parse_authority_part(str: String) -> Result(#(Uri, String), Nil) {
     }
   }
 
-  let #(path, rest) = parse_abs_empty(rest)
+  let #(path, rest) = parse_path_abempty(rest)
 
   Ok(#(Uri(None, ui, Some(host), port, path, None, None), rest))
 }
@@ -396,7 +396,7 @@ fn parse_query_fragment(str: String) {
   )
 }
 
-fn parse_abs_empty(str: String) -> #(String, String) {
+fn parse_path_abempty(str: String) -> #(String, String) {
   utils.get_multiple_optional(
     fn(str) {
       case str {
