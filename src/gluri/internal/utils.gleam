@@ -7,17 +7,21 @@ import gleam/string
 import gleam/uri.{type Uri, Uri}
 import splitter.{type Splitter}
 
-pub const scheme_port = [
-  #("http", 80),
-  #("https", 443),
-  #("ftp", 21),
-  #("ws", 80),
-  #("wss", 443),
+type Scheme {
+  Scheme(name: String, port: Int)
+}
+
+const scheme_port = [
+  Scheme("http", 80),
+  Scheme("https", 443),
+  Scheme("ftp", 21),
+  Scheme("ws", 80),
+  Scheme("wss", 443),
 ]
 
 pub fn get_port_for_scheme(scheme: String) -> Option(Int) {
-  list.find(scheme_port, fn(sp) { sp.0 == scheme })
-  |> result.map(fn(sp) { sp.1 })
+  list.find(scheme_port, fn(sp) { sp.name == scheme })
+  |> result.map(fn(sp) { sp.port })
   |> option.from_result
 }
 
