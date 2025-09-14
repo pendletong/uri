@@ -40,7 +40,8 @@ pub fn parse(uri: String) -> Result(Uri, Nil) {
 fn parse_query(str: String) -> Result(#(Uri, String), Nil) {
   case str {
     "?" <> rest -> {
-      let #(query, rest) = get_multiple_optional(parse_query_fragment, rest)
+      let #(query, rest) =
+        utils.get_multiple_optional(parse_query_fragment, rest)
       Ok(#(Uri(..empty, query: Some(query)), rest))
     }
     _ -> Ok(#(empty, str))
@@ -50,7 +51,8 @@ fn parse_query(str: String) -> Result(#(Uri, String), Nil) {
 fn parse_fragment(str: String) -> Result(#(Uri, String), Nil) {
   case str {
     "#" <> rest -> {
-      let #(fragment, rest) = get_multiple_optional(parse_query_fragment, rest)
+      let #(fragment, rest) =
+        utils.get_multiple_optional(parse_query_fragment, rest)
       Ok(#(Uri(..empty, fragment: Some(fragment)), rest))
     }
     _ -> Ok(#(empty, str))
@@ -58,29 +60,27 @@ fn parse_fragment(str: String) -> Result(#(Uri, String), Nil) {
 }
 
 fn parse_hier_part(str: String) -> Result(#(Uri, String), Nil) {
-  list.fold_until(
+  utils.try_parsers(
     [parse_authority, parse_absolute, parse_rootless, parse_empty],
-    Error(Nil),
-    get_parser_fn(str),
+    str,
   )
 }
 
 fn parse_relative_part(str: String) -> Result(#(Uri, String), Nil) {
-  list.fold_until(
+  utils.try_parsers(
     [parse_authority, parse_absolute, parse_noscheme, parse_empty],
-    Error(Nil),
-    get_parser_fn(str),
+    str,
   )
 }
 
 fn parse_absolute(str: String) -> Result(#(Uri, String), Nil) {
   case str {
     "/" <> rest -> {
-      let assert Ok(#(seg, rest)) =
+      use #(seg, rest) <- result.try(
         parse_optional(rest, parse_this_then(
           [
             do_parse_segment_nz,
-            get_multiple_optional_result(
+            utils.get_multiple_optional_result(
               fn(str) {
                 case str {
                   "/" <> rest -> {
@@ -93,7 +93,8 @@ fn parse_absolute(str: String) -> Result(#(Uri, String), Nil) {
             ),
           ],
           _,
-        ))
+        )),
+      )
 
       Ok(#(Uri(None, None, None, None, "/" <> seg, None, None), rest))
     }
@@ -105,7 +106,7 @@ fn parse_rootless(str: String) -> Result(#(Uri, String), Nil) {
   use #(seg1, rest) <- result.try(do_parse_segment_nz(str))
 
   let #(segs, rest) =
-    get_multiple_optional(
+    utils.get_multiple_optional(
       fn(str) {
         case str {
           "/" <> rest -> {
@@ -124,7 +125,7 @@ fn parse_noscheme(str: String) -> Result(#(Uri, String), Nil) {
   use #(seg1, rest) <- result.try(do_parse_segment_nz_nc(str))
 
   let #(segs, rest) =
-    get_multiple_optional(
+    utils.get_multiple_optional(
       fn(str) {
         case str {
           "/" <> rest -> {
@@ -143,17 +144,6 @@ fn parse_optional(str, opt_fn) {
   case opt_fn(str) {
     Error(Nil) -> Ok(#("", str))
     Ok(r) -> Ok(r)
-  }
-}
-
-fn get_multiple_optional_result(opt_fn, str: String) {
-  get_multiple_optional(opt_fn, str) |> Ok
-}
-
-fn get_multiple_optional(opt_fn, str: String) {
-  case get_multiple(opt_fn, str) {
-    Error(_) -> #("", str)
-    Ok(r) -> r
   }
 }
 
@@ -211,20 +201,15 @@ fn parse_digits(str: String, digits: String) {
 }
 
 fn parse_host(str: String) {
-  list.fold_until(
-    [parse_ip_literal, parse_ipv4, parse_reg_name],
-    Error(Nil),
-    get_parser_fn(str),
-  )
+  utils.try_parsers([parse_ip_literal, parse_ipv4, parse_reg_name], str)
 }
 
 fn parse_ip_literal(str: String) {
   case str {
     "[" <> rest -> {
-      use #(ip, rest) <- result.try(list.fold_until(
+      use #(ip, rest) <- result.try(utils.try_parsers(
         [parse_ipv6, parse_ipfuture],
-        Error(Nil),
-        get_parser_fn(rest),
+        rest,
       ))
       case rest {
         "]" <> rest -> Ok(#(ip, rest))
@@ -236,7 +221,7 @@ fn parse_ip_literal(str: String) {
 }
 
 fn parse_ipv6(str: String) {
-  list.fold_until(
+  utils.try_parsers(
     [
       parse_this_then([parse_min_max(_, 6, 6, parse_h16_colon), parse_ls32], _),
       parse_this_then(
@@ -303,8 +288,7 @@ fn parse_ipv6(str: String) {
         _,
       ),
     ],
-    Error(Nil),
-    get_parser_fn(str),
+    str,
   )
 }
 
@@ -335,7 +319,7 @@ fn parse_this_then(
 }
 
 fn parse_ls32(str: String) -> Result(#(String, String), Nil) {
-  list.fold_until([parse_h16_pair, parse_ipv4], Error(Nil), get_parser_fn(str))
+  utils.try_parsers([parse_h16_pair, parse_ipv4], str)
 }
 
 fn parse_h16_pair(str: String) {
@@ -364,13 +348,16 @@ fn parse_h16_colon(str: String) {
 fn parse_ipfuture(str: String) {
   case str {
     "v" <> rest -> {
-      use #(v, rest) <- result.try(get_multiple(utils.parse_hex_digit, rest))
+      use #(v, rest) <- result.try(utils.get_multiple(
+        utils.parse_hex_digit,
+        rest,
+      ))
 
       case rest {
         "." <> rest -> {
-          use #(i, rest) <- result.try(get_multiple(
+          use #(i, rest) <- result.try(utils.get_multiple(
             fn(str) {
-              list.fold_until(
+              utils.try_parsers(
                 [
                   parse_unreserved,
                   parse_sub_delim,
@@ -381,8 +368,7 @@ fn parse_ipfuture(str: String) {
                     }
                   },
                 ],
-                Error(Nil),
-                get_parser_fn(str),
+                str,
               )
             },
             rest,
@@ -396,33 +382,8 @@ fn parse_ipfuture(str: String) {
   }
 }
 
-fn get_multiple(
-  to_run: fn(String) -> Result(#(String, String), Nil),
-  str: String,
-) -> Result(#(String, String), Nil) {
-  case do_get_multiple(to_run, str, "") {
-    Ok(#("", _)) | Error(Nil) -> Error(Nil)
-    Ok(#(r, rest)) -> Ok(#(r, rest))
-  }
-}
-
-fn do_get_multiple(
-  to_run: fn(String) -> Result(#(String, String), Nil),
-  str: String,
-  ret: String,
-) -> Result(#(String, String), Nil) {
-  case str {
-    "" -> Ok(#(ret, str))
-    _ ->
-      case to_run(str) {
-        Ok(#(r, rest)) -> do_get_multiple(to_run, rest, ret <> r)
-        Error(_) -> Ok(#(ret, str))
-      }
-  }
-}
-
 fn parse_query_fragment(str: String) {
-  list.fold_until(
+  utils.try_parsers(
     [
       do_parse_pchar,
       fn(str: String) {
@@ -432,13 +393,12 @@ fn parse_query_fragment(str: String) {
         }
       },
     ],
-    Error(Nil),
-    get_parser_fn(str),
+    str,
   )
 }
 
 fn parse_abs_empty(str: String) -> #(String, String) {
-  get_multiple_optional(
+  utils.get_multiple_optional(
     fn(str) {
       case str {
         "/" <> rest -> {
@@ -483,7 +443,7 @@ fn do_parse_segment_nz_nc(str: String) {
 }
 
 fn do_parse_pchar(str: String) {
-  list.fold_until(
+  utils.try_parsers(
     [
       parse_unreserved,
       parse_pct_encoded,
@@ -495,13 +455,12 @@ fn do_parse_pchar(str: String) {
         }
       },
     ],
-    Error(Nil),
-    get_parser_fn(str),
+    str,
   )
 }
 
 fn do_parse_pchar_nc(str: String) {
-  list.fold_until(
+  utils.try_parsers(
     [
       parse_unreserved,
       parse_pct_encoded,
@@ -513,12 +472,11 @@ fn do_parse_pchar_nc(str: String) {
         }
       },
     ],
-    Error(Nil),
-    get_parser_fn(str),
+    str,
   )
 }
 
-fn parse_reg_name(str: String) {
+pub fn parse_reg_name(str: String) {
   // can't error
 
   case do_parse_reg_name(str, "") {
@@ -529,10 +487,9 @@ fn parse_reg_name(str: String) {
 
 fn do_parse_reg_name(str: String, reg_name: String) {
   case
-    list.fold_until(
+    utils.try_parsers(
       [parse_unreserved, parse_pct_encoded, parse_sub_delim],
-      Error(Nil),
-      get_parser_fn(str),
+      str,
     )
   {
     Error(Nil) | Ok(#("", _)) -> Ok(#(reg_name, str))
@@ -589,16 +546,16 @@ fn parse_ipv4(str: String) {
   Ok(#(oct1 <> "." <> oct2 <> "." <> oct3 <> "." <> oct4, rest))
 }
 
-fn parse_dec_octet(str: String) -> Result(#(String, String), Nil) {
-  let matches = [
-    ["2", "5", "012345"],
-    ["2", "01234", "0123456789"],
-    ["1", "0123456789", "0123456789"],
-    ["123456789", "0123456789"],
-    ["0123456789"],
-  ]
+const octet_matches = [
+  ["2", "5", "012345"],
+  ["2", "01234", "0123456789"],
+  ["1", "0123456789", "0123456789"],
+  ["123456789", "0123456789"],
+  ["0123456789"],
+]
 
-  list.fold_until(matches, Error(Nil), fn(_, chars) {
+fn parse_dec_octet(str: String) -> Result(#(String, String), Nil) {
+  list.fold_until(octet_matches, Error(Nil), fn(_, chars) {
     case
       list.fold_until(chars, #("", str), fn(acc, charset) {
         let #(octet, str) = acc
@@ -627,7 +584,7 @@ fn parse_userinfo(
     "@" <> rest -> Ok(#(userinfo, rest))
     "" -> Error(Nil)
     _ -> {
-      use #(part, rest) <- result.try(list.fold_until(
+      use #(part, rest) <- result.try(utils.try_parsers(
         [
           parse_unreserved,
           parse_pct_encoded,
@@ -639,8 +596,7 @@ fn parse_userinfo(
             }
           },
         ],
-        Error(Nil),
-        get_parser_fn(str),
+        str,
       ))
       parse_userinfo(rest, userinfo <> part)
     }
@@ -668,7 +624,7 @@ fn do_parse_scheme(
     ":" <> rest -> Ok(#(scheme, rest))
     "" -> Error(Nil)
     _ -> {
-      use #(part, rest) <- result.try(list.fold_until(
+      use #(part, rest) <- result.try(utils.try_parsers(
         [
           parse_alpha,
           parse_digit,
@@ -680,21 +636,9 @@ fn do_parse_scheme(
             }
           },
         ],
-        Error(Nil),
-        get_parser_fn(str),
+        str,
       ))
       do_parse_scheme(rest, scheme <> part)
-    }
-  }
-}
-
-fn get_parser_fn(
-  str: String,
-) -> fn(a, fn(String) -> Result(b, c)) -> list.ContinueOrStop(Result(b, Nil)) {
-  fn(_, parse_fn) {
-    case parse_fn(str) {
-      Ok(r) -> Stop(Ok(r))
-      Error(_) -> Continue(Error(Nil))
     }
   }
 }
@@ -799,7 +743,7 @@ fn parse_alpha(str: String) -> Result(#(String, String), Nil) {
 }
 
 fn parse_unreserved(str: String) -> Result(#(String, String), Nil) {
-  list.fold_until(
+  utils.try_parsers(
     [
       parse_alpha,
       parse_digit,
@@ -813,8 +757,7 @@ fn parse_unreserved(str: String) -> Result(#(String, String), Nil) {
         }
       },
     ],
-    Error(Nil),
-    get_parser_fn(str),
+    str,
   )
 }
 

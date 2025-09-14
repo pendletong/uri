@@ -1,6 +1,7 @@
 import gleam/bool
 import gleam/int
 import gleam/list
+
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
@@ -83,6 +84,56 @@ fn merge_paths(base: Uri, relative: Uri) -> String {
     _, _ -> {
       remove_segment(base.path) <> "/" <> relative.path
     }
+  }
+}
+
+pub fn try_parsers(
+  over list: List(fn(String) -> Result(#(a, String), Nil)),
+  against static_data: String,
+) -> Result(#(a, String), Nil) {
+  case list {
+    [] -> Error(Nil)
+    [first, ..rest] ->
+      case first(static_data) {
+        Error(_) -> try_parsers(rest, static_data)
+        Ok(r) -> Ok(r)
+      }
+  }
+}
+
+pub fn get_multiple(
+  to_run: fn(String) -> Result(#(String, String), Nil),
+  str: String,
+) -> Result(#(String, String), Nil) {
+  case do_get_multiple(to_run, str, "") {
+    Ok(#("", _)) | Error(Nil) -> Error(Nil)
+    Ok(#(r, rest)) -> Ok(#(r, rest))
+  }
+}
+
+pub fn get_multiple_optional(opt_fn, str: String) {
+  case get_multiple(opt_fn, str) {
+    Error(_) -> #("", str)
+    Ok(r) -> r
+  }
+}
+
+pub fn get_multiple_optional_result(opt_fn, str: String) {
+  get_multiple_optional(opt_fn, str) |> Ok
+}
+
+fn do_get_multiple(
+  to_run: fn(String) -> Result(#(String, String), Nil),
+  str: String,
+  ret: String,
+) -> Result(#(String, String), Nil) {
+  case str {
+    "" -> Ok(#(ret, str))
+    _ ->
+      case to_run(str) {
+        Ok(#(r, rest)) -> do_get_multiple(to_run, rest, ret <> r)
+        Error(_) -> Ok(#(ret, str))
+      }
   }
 }
 

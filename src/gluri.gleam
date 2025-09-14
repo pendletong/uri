@@ -3,7 +3,7 @@ import gleam/int
 import gleam/list
 import gleam/option.{Some}
 import gleam/string
-import gleam/uri.{type Uri, Uri}
+import gleam/uri.{type Uri}
 import gluri/internal/parser
 import gluri/internal/utils
 
