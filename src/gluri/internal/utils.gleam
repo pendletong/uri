@@ -102,23 +102,23 @@ pub fn try_parsers(
 }
 
 pub fn parse_min_max(str, min, max, parse_fn) {
-  use <- bool.guard(when: min < 0 || max <= 0 || min > max, return: Error(Nil))
-  case
-    list.repeat("", max)
-    |> list.fold_until(Ok(#("", str, 0)), fn(acc, _) {
-      let assert Ok(#(hex, str, i)) = acc
-      case parse_fn(str) {
-        Error(_) ->
-          case i < min {
-            True -> Stop(Error(Nil))
-            False -> Stop(Ok(#(hex, str, i)))
-          }
-        Ok(#(l, rest)) -> Continue(Ok(#(hex <> l, rest, i + 1)))
+  do_parse_min_max(str, "", min, max, parse_fn)
+}
+
+pub fn do_parse_min_max(str, acc, min, max, parse_fn) {
+  case parse_fn(str) {
+    Error(_) -> {
+      case min > 0 {
+        True -> Error(Nil)
+        False -> Ok(#(acc, str))
       }
-    })
-  {
-    Error(_) -> Error(Nil)
-    Ok(#(hex, str, _)) -> Ok(#(hex, str))
+    }
+    Ok(#(l, rest)) -> {
+      case max {
+        1 -> Ok(#(acc <> l, rest))
+        _ -> do_parse_min_max(rest, acc <> l, min - 1, max - 1, parse_fn)
+      }
+    }
   }
 }
 
