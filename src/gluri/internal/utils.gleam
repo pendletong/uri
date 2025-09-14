@@ -1,6 +1,6 @@
 import gleam/bool
 import gleam/int
-import gleam/list
+import gleam/list.{Continue, Stop}
 
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -101,6 +101,49 @@ pub fn try_parsers(
   }
 }
 
+pub fn parse_min_max(str, min, max, parse_fn) {
+  use <- bool.guard(when: min < 0 || max <= 0 || min > max, return: Error(Nil))
+  case
+    list.repeat("", max)
+    |> list.fold_until(Ok(#("", str, 0)), fn(acc, _) {
+      let assert Ok(#(hex, str, i)) = acc
+      case parse_fn(str) {
+        Error(_) ->
+          case i < min {
+            True -> Stop(Error(Nil))
+            False -> Stop(Ok(#(hex, str, i)))
+          }
+        Ok(#(l, rest)) -> Continue(Ok(#(hex <> l, rest, i + 1)))
+      }
+    })
+  {
+    Error(_) -> Error(Nil)
+    Ok(#(hex, str, _)) -> Ok(#(hex, str))
+  }
+}
+
+pub fn parse_optional(str, opt_fn) {
+  case opt_fn(str) {
+    Error(Nil) -> Ok(#("", str))
+    Ok(r) -> Ok(r)
+  }
+}
+
+pub fn parse_this_then(
+  parsers: List(fn(String) -> Result(#(String, String), Nil)),
+  str: String,
+) {
+  list.fold_until(parsers, Ok(#("", str)), fn(acc, parser) {
+    let assert Ok(#(res, str)) = acc
+    case parser(str) {
+      Ok(#(res2, rest)) -> {
+        Continue(Ok(#(res <> res2, rest)))
+      }
+      Error(Nil) -> Stop(Error(Nil))
+    }
+  })
+}
+
 pub fn get_multiple(
   to_run: fn(String) -> Result(#(String, String), Nil),
   str: String,
@@ -135,6 +178,41 @@ fn do_get_multiple(
         Error(_) -> Ok(#(ret, str))
       }
   }
+}
+
+pub fn combine_uris(uris: List(Uri)) -> Uri {
+  list.fold(uris, Uri(None, None, None, None, "", None, None), fn(acc, uri) {
+    let acc = case uri {
+      Uri(Some(scheme), _, _, _, _, _, _) -> Uri(..acc, scheme: Some(scheme))
+      _ -> acc
+    }
+    let acc = case uri {
+      Uri(_, Some(userinfo), _, _, _, _, _) ->
+        Uri(..acc, userinfo: Some(userinfo))
+      _ -> acc
+    }
+    let acc = case uri {
+      Uri(_, _, Some(host), _, _, _, _) -> Uri(..acc, host: Some(host))
+      _ -> acc
+    }
+    let acc = case uri {
+      Uri(_, _, _, Some(port), _, _, _) -> Uri(..acc, port: Some(port))
+      _ -> acc
+    }
+    let acc = case uri {
+      Uri(_, _, _, _, path, _, _) if path != "" -> Uri(..acc, path: path)
+      _ -> acc
+    }
+    let acc = case uri {
+      Uri(_, _, _, _, _, Some(query), _) -> Uri(..acc, query: Some(query))
+      _ -> acc
+    }
+    case uri {
+      Uri(_, _, _, _, _, _, Some(fragment)) ->
+        Uri(..acc, fragment: Some(fragment))
+      _ -> acc
+    }
+  })
 }
 
 pub fn normalise(uri: Uri) -> Uri {
@@ -301,6 +379,10 @@ pub fn parse_hex_digit(str) {
     | "F" as l <> rest -> Ok(#(l, rest))
     _ -> Error(Nil)
   }
+}
+
+pub fn parse_hex_digits(str, min, max) {
+  parse_min_max(str, min, max, parse_hex_digit)
 }
 
 fn encoding_not_needed(i: Int) -> Bool {
