@@ -1,6 +1,7 @@
+import gleam/bool
 import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
 import gleam/uri.{type Uri, Uri, empty}
@@ -19,9 +20,9 @@ pub fn parse(uri: String) -> Result(Uri, Nil) {
     Ok(#(scheme, rest)) -> {
       use #(rel_part, rest) <- result.try(parse_hier_part(rest))
 
-      use #(query, rest) <- result.try(parse_query(rest))
+      let #(query, rest) = parse_query(rest)
 
-      use #(fragment, rest) <- result.try(parse_fragment(rest))
+      let #(fragment, rest) = parse_fragment(rest)
 
       case rest {
         "" -> Ok(combine_uris([scheme, rel_part, query, fragment]))
@@ -31,9 +32,9 @@ pub fn parse(uri: String) -> Result(Uri, Nil) {
     Error(_) -> {
       use #(rel_part, rest) <- result.try(parse_relative_part(uri))
 
-      use #(query, rest) <- result.try(parse_query(rest))
+      let #(query, rest) = parse_query(rest)
 
-      use #(fragment, rest) <- result.try(parse_fragment(rest))
+      let #(fragment, rest) = parse_fragment(rest)
 
       case rest {
         "" -> Ok(combine_uris([rel_part, query, fragment]))
@@ -60,26 +61,26 @@ fn parse_hier_part(str: String) -> Result(#(Uri, String), Nil) {
 }
 
 // query         = *( pchar / "/" / "?" )
-fn parse_query(str: String) -> Result(#(Uri, String), Nil) {
+fn parse_query(str: String) -> #(Uri, String) {
   case str {
     "?" <> rest -> {
       let #(query, rest) =
         parse_optional(rest, parse_multiple(_, parse_query_fragment))
-      Ok(#(Uri(..empty, query: Some(query)), rest))
+      #(Uri(..empty, query: Some(query)), rest)
     }
-    _ -> Ok(#(empty, str))
+    _ -> #(empty, str)
   }
 }
 
 // fragment      = *( pchar / "/" / "?" )
-fn parse_fragment(str: String) -> Result(#(Uri, String), Nil) {
+fn parse_fragment(str: String) -> #(Uri, String) {
   case str {
     "#" <> rest -> {
       let #(fragment, rest) =
         parse_optional(rest, parse_multiple(_, parse_query_fragment))
-      Ok(#(Uri(..empty, fragment: Some(fragment)), rest))
+      #(Uri(..empty, fragment: Some(fragment)), rest)
     }
-    _ -> Ok(#(empty, str))
+    _ -> #(empty, str)
   }
 }
 
@@ -167,50 +168,43 @@ fn parse_authority(str: String) -> Result(#(Uri, String), Nil) {
 }
 
 fn parse_authority_part(str: String) -> Result(#(Uri, String), Nil) {
-  let #(ui, rest) = case parse_userinfo(str, "") {
-    Ok(#(ui, rest)) -> #(Some(ui), rest)
-    Error(_) -> #(None, str)
-  }
+  let #(userinfo, rest) = parse_userinfo(str, "")
 
   use #(host, rest) <- result.try(parse_host(rest))
 
-  let #(port, rest) = case parse_port(rest) {
-    Ok(#("", rest)) -> #(None, rest)
-    Error(_) -> #(None, rest)
-    Ok(#(port, rest)) -> {
-      #(int.parse(port) |> option.from_result, rest)
-    }
-  }
+  let #(port, rest) = parse_port(rest)
 
   let #(path, rest) = parse_path_abempty(rest)
 
-  Ok(#(Uri(None, ui, Some(host), port, path, None, None), rest))
+  Ok(#(Uri(None, userinfo, Some(host), port, path, None, None), rest))
 }
 
 // userinfo      = *( unreserved / pct-encoded / sub-delims / ":" )
-fn parse_userinfo(
-  str: String,
-  userinfo: String,
-) -> Result(#(String, String), Nil) {
+fn parse_userinfo(str: String, userinfo: String) -> #(Option(String), String) {
+  use <- bool.guard(when: !string.contains(str, "@"), return: #(None, str))
   case str {
-    "@" <> rest -> Ok(#(userinfo, rest))
-    "" -> Error(Nil)
+    "@" <> rest -> #(Some(userinfo), rest)
+    "" -> #(None, userinfo <> str)
     _ -> {
-      use #(part, rest) <- result.try(try_parsers(
-        [
-          parse_unreserved,
-          parse_pct_encoded,
-          parse_sub_delim,
-          fn(str: String) {
-            case str {
-              ":" as l <> rest -> Ok(#(l, rest))
-              _ -> Error(Nil)
-            }
-          },
-        ],
-        str,
-      ))
-      parse_userinfo(rest, userinfo <> part)
+      case
+        try_parsers(
+          [
+            parse_unreserved,
+            parse_pct_encoded,
+            parse_sub_delim,
+            fn(str: String) {
+              case str {
+                ":" as l <> rest -> Ok(#(l, rest))
+                _ -> Error(Nil)
+              }
+            },
+          ],
+          str,
+        )
+      {
+        Ok(#(part, rest)) -> parse_userinfo(rest, userinfo <> part)
+        Error(_) -> #(None, userinfo <> str)
+      }
     }
   }
 }
@@ -221,12 +215,13 @@ fn parse_host(str: String) {
 }
 
 // port          = *DIGIT
-fn parse_port(str: String) {
+fn parse_port(str: String) -> #(Option(Int), String) {
   case str {
     ":" <> rest -> {
-      Ok(parse_digits(rest, ""))
+      let #(port, rest) = parse_digits(rest, "")
+      #(int.parse(port) |> option.from_result, rest)
     }
-    _ -> Error(Nil)
+    _ -> #(None, str)
   }
 }
 
