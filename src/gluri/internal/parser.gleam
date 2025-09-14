@@ -172,8 +172,7 @@ fn parse_authority_part(str: String) -> Result(#(Uri, String), Nil) {
     Ok(#("", rest)) -> #(None, rest)
     Error(_) -> #(None, rest)
     Ok(#(port, rest)) -> {
-      let assert Ok(port) = int.parse(port)
-      #(Some(port), rest)
+      #(int.parse(port) |> option.from_result, rest)
     }
   }
 
