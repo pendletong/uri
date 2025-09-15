@@ -12,3 +12,7 @@
 
 - Improved parsing performance significantly and reduced memory usage up to 50%
 - Significantly improved IPV4 parsing performance
+
+## v2.0.2
+
+- Minor performance improvement for uris with userinfo
