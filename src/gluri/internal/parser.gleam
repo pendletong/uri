@@ -168,7 +168,7 @@ fn parse_authority(str: String) -> Result(#(Uri, String), Nil) {
 }
 
 fn parse_authority_part(str: String) -> Result(#(Uri, String), Nil) {
-  let #(userinfo, rest) = parse_userinfo(str, "")
+  let #(userinfo, rest) = parse_userinfo(str)
 
   use #(host, rest) <- result.try(parse_host(rest))
 
@@ -180,8 +180,12 @@ fn parse_authority_part(str: String) -> Result(#(Uri, String), Nil) {
 }
 
 // userinfo      = *( unreserved / pct-encoded / sub-delims / ":" )
-fn parse_userinfo(str: String, userinfo: String) -> #(Option(String), String) {
+fn parse_userinfo(str: String) -> #(Option(String), String) {
   use <- bool.guard(when: !string.contains(str, "@"), return: #(None, str))
+  do_parse_userinfo(str, "")
+}
+
+fn do_parse_userinfo(str: String, userinfo: String) -> #(Option(String), String) {
   case str {
     "@" <> rest -> #(Some(userinfo), rest)
     "" -> #(None, userinfo <> str)
@@ -202,7 +206,7 @@ fn parse_userinfo(str: String, userinfo: String) -> #(Option(String), String) {
           str,
         )
       {
-        Ok(#(part, rest)) -> parse_userinfo(rest, userinfo <> part)
+        Ok(#(part, rest)) -> do_parse_userinfo(rest, userinfo <> part)
         Error(_) -> #(None, userinfo <> str)
       }
     }
@@ -421,7 +425,7 @@ fn parse_ipv4address(str: String) {
 //              / "1" 2DIGIT            ; 100-199
 //              / "2" %x30-34 DIGIT     ; 200-249
 //              / "25" %x30-35          ; 250-255
-pub fn parse_dec_octet(str: String) -> Result(#(String, String), Nil) {
+fn parse_dec_octet(str: String) -> Result(#(String, String), Nil) {
   try_parsers(
     [
       parse_this_then(_, [
@@ -486,7 +490,7 @@ pub fn parse_dec_octet(str: String) -> Result(#(String, String), Nil) {
 }
 
 // reg-name      = *( unreserved / pct-encoded / sub-delims )
-pub fn parse_reg_name(str: String) {
+fn parse_reg_name(str: String) {
   // can't error
 
   case do_parse_reg_name(str, "") {

@@ -1,6 +1,5 @@
 import gleam/uri as uri2
 import gluri as uri
-import gluri/internal/parser
 import glychee/benchmark
 import glychee/configuration
 
@@ -15,43 +14,43 @@ pub fn main() {
   // ip_benchmark()
 }
 
-@target(erlang)
-pub fn ip_benchmark() {
-  benchmark.run(
-    [
-      benchmark.Function("ip_benchmark", fn(data) {
-        fn() {
-          let _ = parser.parse_dec_octet(data)
-          Nil
-        }
-      }),
-    ],
-    [
-      benchmark.Data("173", "173"),
-      benchmark.Data("5", "5"),
-      benchmark.Data("200", "200"),
-      benchmark.Data("255", "255"),
-      benchmark.Data("fail", "2b"),
-    ],
-  )
-}
+// @target(erlang)
+// pub fn ip_benchmark() {
+//   benchmark.run(
+//     [
+//       benchmark.Function("ip_benchmark", fn(data) {
+//         fn() {
+//           let _ = parser.parse_dec_octet(data)
+//           Nil
+//         }
+//       }),
+//     ],
+//     [
+//       benchmark.Data("173", "173"),
+//       benchmark.Data("5", "5"),
+//       benchmark.Data("200", "200"),
+//       benchmark.Data("255", "255"),
+//       benchmark.Data("fail", "2b"),
+//     ],
+//   )
+// }
 
-@target(erlang)
-pub fn reg_name_benchmark() {
-  benchmark.run(
-    [
-      benchmark.Function("reg_name_benchmark", fn(data) {
-        fn() {
-          let _ = parser.parse_reg_name(data)
-          Nil
-        }
-      }),
-    ],
-    [
-      benchmark.Data("long", "github.com"),
-    ],
-  )
-}
+// @target(erlang)
+// pub fn reg_name_benchmark() {
+//   benchmark.run(
+//     [
+//       benchmark.Function("reg_name_benchmark", fn(data) {
+//         fn() {
+//           let _ = parser.parse_reg_name(data)
+//           Nil
+//         }
+//       }),
+//     ],
+//     [
+//       benchmark.Data("long", "github.com"),
+//     ],
+//   )
+// }
 
 @target(erlang)
 pub fn parse_benchmark() {
@@ -74,6 +73,10 @@ pub fn parse_benchmark() {
       benchmark.Data(
         "long",
         "https://github.com/gleam-lang/stdlib/issues/523#issuecomment-3288230480",
+      ),
+      benchmark.Data(
+        "with user",
+        "https://test_name:user%20$$$@github.com/gleam-lang/stdlib/issues/523#issuecomment-3288230480",
       ),
       benchmark.Data("ipv4", "https://192.255.36.4/"),
     ],
