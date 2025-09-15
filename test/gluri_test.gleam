@@ -9,6 +9,27 @@ pub fn main() {
   startest.run(startest.default_config())
 }
 
+pub fn parse_general_tests() {
+  describe("general parsing", [
+    it("mailto parsing", fn() {
+      uri.parse("mailto:Joe@example.com")
+      |> should.equal(Ok(
+        Uri(..empty, scheme: Some("mailto"), path: "Joe@example.com"),
+      ))
+      uri.parse("mailto:Joe@example.com?hello#bye")
+      |> should.equal(Ok(
+        Uri(
+          ..empty,
+          scheme: Some("mailto"),
+          path: "Joe@example.com",
+          query: Some("hello"),
+          fragment: Some("bye"),
+        ),
+      ))
+    }),
+  ])
+}
+
 pub fn parse_scheme_tests() {
   describe("scheme parsing", [
     it("simple parse", fn() {
