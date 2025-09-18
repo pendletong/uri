@@ -1,4 +1,3 @@
-import gleam/bool
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -181,8 +180,10 @@ fn parse_authority_part(str: String) -> Result(#(Uri, String), Nil) {
 
 // userinfo      = *( unreserved / pct-encoded / sub-delims / ":" )
 fn parse_userinfo(str: String) -> #(Option(String), String) {
-  use <- bool.guard(when: !string.contains(str, "@"), return: #(None, str))
-  do_parse_userinfo(str, "")
+  case string.contains(str, "@") {
+    True -> do_parse_userinfo(str, "")
+    False -> #(None, str)
+  }
 }
 
 fn do_parse_userinfo(str: String, userinfo: String) -> #(Option(String), String) {
