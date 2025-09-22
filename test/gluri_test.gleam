@@ -27,6 +27,45 @@ pub fn parse_general_tests() {
         ),
       ))
     }),
+    it("ai gen pass", fn() {
+      let _ = uri.parse("https://example.com") |> should.be_ok
+      let _ =
+        uri.parse("http://www.example.org/resource?id=123&lang=en")
+        |> should.be_ok
+      let _ =
+        uri.parse("ftp://ftp.example.net/pub/files/archive.tar.gz")
+        |> should.be_ok
+      let _ = uri.parse("mailto:user+alias@example.com") |> should.be_ok
+      let _ = uri.parse("urn:isbn:978-3-16-148410-0") |> should.be_ok
+      let _ =
+        uri.parse("ws://socket.example.com:8080/chat?room=42#section2")
+        |> should.be_ok
+      let _ =
+        uri.parse("https://sub.domain.co.uk/path/to/resource/") |> should.be_ok
+      let _ =
+        uri.parse("file:///C:/Windows/System32/drivers/etc/hosts")
+        |> should.be_ok
+      let _ =
+        uri.parse("git+ssh://git@example.com:2222/repo.git") |> should.be_ok
+      let _ =
+        uri.parse(
+          "https://xn--fsqu00a.xn--0zwm56d/%E8%B7%AF%E5%BE%84?%E6%9F%A5%E8%AF%A2=%E5%80%BC#%E7%89%87%E6%AE%B5",
+        )
+        |> should.be_ok
+      Nil
+    }),
+    it("ai gen fail", fn() {
+      let _ = uri.parse("ht!tp://example.com") |> should.be_error
+      let _ = uri.parse("http://exa mple.com") |> should.be_error
+      let _ = uri.parse("://missing-scheme.com") |> should.be_error
+      let _ = uri.parse("http://example.com:80a/") |> should.be_error
+      let _ = uri.parse("http://[2001:db8::1") |> should.be_error
+      let _ = uri.parse("http://example.com/%ZZ") |> should.be_error
+      let _ = uri.parse("http://example.com?%") |> should.be_error
+      let _ = uri.parse("`https://example.com/invalid") |> should.be_error
+      let _ = uri.parse("http://example.com?foo=bar%2") |> should.be_error
+      let _ = uri.parse("http://example.com:12345abc/") |> should.be_error
+    }),
   ])
 }
 
