@@ -16,3 +16,4 @@
 ## v2.0.2
 
 - Minor performance improvement for uris with userinfo
+- More performance improvements for ascii/digit parsing
