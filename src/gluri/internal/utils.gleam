@@ -370,31 +370,18 @@ fn unescape_percent(str: String) -> String {
   }
 }
 
-pub fn parse_hex_digit(str) {
-  case str {
-    "0" as l <> rest
-    | "1" as l <> rest
-    | "2" as l <> rest
-    | "3" as l <> rest
-    | "4" as l <> rest
-    | "5" as l <> rest
-    | "6" as l <> rest
-    | "7" as l <> rest
-    | "8" as l <> rest
-    | "9" as l <> rest
-    | "a" as l <> rest
-    | "b" as l <> rest
-    | "c" as l <> rest
-    | "d" as l <> rest
-    | "e" as l <> rest
-    | "f" as l <> rest
-    | "A" as l <> rest
-    | "B" as l <> rest
-    | "C" as l <> rest
-    | "D" as l <> rest
-    | "E" as l <> rest
-    | "F" as l <> rest -> Ok(#(l, rest))
-    _ -> Error(Nil)
+pub fn parse_hex_digit(str: String) -> Result(#(String, String), Nil) {
+  case string.pop_grapheme(str) {
+    Ok(#(char, tail)) -> {
+      let assert [codepoint] = string.to_utf_codepoints(char)
+      case string.utf_codepoint_to_int(codepoint) {
+        i if i >= 0x30 && i <= 0x39 -> Ok(#(char, tail))
+        i if i >= 0x41 && i <= 0x46 -> Ok(#(char, tail))
+        i if i >= 0x61 && i <= 0x66 -> Ok(#(char, tail))
+        _ -> Error(Nil)
+      }
+    }
+    Error(_) -> Error(Nil)
   }
 }
 
