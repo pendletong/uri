@@ -733,12 +733,13 @@ fn parse_sub_delim(str: String) -> Result(#(String, String), Nil) {
   case string.pop_grapheme(str) {
     Ok(#(char, tail)) -> {
       let assert [codepoint] = string.to_utf_codepoints(char)
-      case string.utf_codepoint_to_int(codepoint) {
-        i if i >= 0x26 && i <= 0x2C -> Ok(#(char, tail))
-        i if i == 0x21 -> Ok(#(char, tail))
-        i if i == 0x24 -> Ok(#(char, tail))
-        i if i == 0x3B -> Ok(#(char, tail))
-        i if i == 0x3D -> Ok(#(char, tail))
+      let i = string.utf_codepoint_to_int(codepoint)
+      case i {
+        _ if i >= 0x26 && i <= 0x2C -> Ok(#(char, tail))
+        _ if i == 0x21 -> Ok(#(char, tail))
+        _ if i == 0x24 -> Ok(#(char, tail))
+        _ if i == 0x3B -> Ok(#(char, tail))
+        _ if i == 0x3D -> Ok(#(char, tail))
         _ -> Error(Nil)
       }
     }
@@ -751,8 +752,9 @@ fn parse_digit(str: String) -> Result(#(String, String), Nil) {
   case string.pop_grapheme(str) {
     Ok(#(char, tail)) -> {
       let assert [codepoint] = string.to_utf_codepoints(char)
-      case string.utf_codepoint_to_int(codepoint) {
-        i if i >= 0x30 && i <= 0x39 -> Ok(#(char, tail))
+      let i = string.utf_codepoint_to_int(codepoint)
+      case i {
+        _ if i >= 0x30 && i <= 0x39 -> Ok(#(char, tail))
         _ -> Error(Nil)
       }
     }
@@ -765,8 +767,9 @@ fn parse_digit_nz(str: String) -> Result(#(String, String), Nil) {
   case string.pop_grapheme(str) {
     Ok(#(char, tail)) -> {
       let assert [codepoint] = string.to_utf_codepoints(char)
-      case string.utf_codepoint_to_int(codepoint) {
-        i if i >= 0x31 && i <= 0x39 -> Ok(#(char, tail))
+      let i = string.utf_codepoint_to_int(codepoint)
+      case i {
+        _ if i >= 0x31 && i <= 0x39 -> Ok(#(char, tail))
         _ -> Error(Nil)
       }
     }
@@ -788,9 +791,10 @@ fn parse_alpha(str: String) -> Result(#(String, String), Nil) {
   case string.pop_grapheme(str) {
     Ok(#(char, tail)) -> {
       let assert [codepoint] = string.to_utf_codepoints(char)
-      case string.utf_codepoint_to_int(codepoint) {
-        i if i >= 0x41 && i <= 0x5A -> Ok(#(char, tail))
-        i if i >= 0x61 && i <= 0x7A -> Ok(#(char, tail))
+      let i = string.utf_codepoint_to_int(codepoint)
+      case i {
+        _ if i >= 0x41 && i <= 0x5A -> Ok(#(char, tail))
+        _ if i >= 0x61 && i <= 0x7A -> Ok(#(char, tail))
         _ -> Error(Nil)
       }
     }
