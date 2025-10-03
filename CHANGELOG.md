@@ -17,3 +17,8 @@
 
 - Minor performance improvement for uris with userinfo
 - More performance improvements for ascii/digit parsing
+
+## 2.0.3
+
+- Minor performance improvement for erlang
+- Major performance improvement for js
