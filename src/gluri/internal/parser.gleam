@@ -731,49 +731,53 @@ fn parse_unreserved(str: String) -> Result(#(String, String), Nil) {
 //               / %2A / %2B / %2C / %3B / %3D
 fn parse_sub_delim(str: String) -> Result(#(String, String), Nil) {
   case string.pop_grapheme(str) {
-    Ok(#(char, tail)) -> {
-      let assert [codepoint] = string.to_utf_codepoints(char)
-      let i = string.utf_codepoint_to_int(codepoint)
-      case i {
-        _ if i >= 0x26 && i <= 0x2C -> Ok(#(char, tail))
-        _ if i == 0x21 -> Ok(#(char, tail))
-        _ if i == 0x24 -> Ok(#(char, tail))
-        _ if i == 0x3B -> Ok(#(char, tail))
-        _ if i == 0x3D -> Ok(#(char, tail))
-        _ -> Error(Nil)
-      }
-    }
-    Error(_) -> Error(Nil)
+    Ok(#("!" as char, tail))
+    | Ok(#("$" as char, tail))
+    | Ok(#("&" as char, tail))
+    | Ok(#("'" as char, tail))
+    | Ok(#("(" as char, tail))
+    | Ok(#(")" as char, tail))
+    | Ok(#("*" as char, tail))
+    | Ok(#("+" as char, tail))
+    | Ok(#("," as char, tail))
+    | Ok(#(";" as char, tail))
+    | Ok(#("=" as char, tail)) -> Ok(#(char, tail))
+    _ -> Error(Nil)
   }
 }
 
 // DIGIT    = %x30–39
 fn parse_digit(str: String) -> Result(#(String, String), Nil) {
   case string.pop_grapheme(str) {
-    Ok(#(char, tail)) -> {
-      let assert [codepoint] = string.to_utf_codepoints(char)
-      let i = string.utf_codepoint_to_int(codepoint)
-      case i {
-        _ if i >= 0x30 && i <= 0x39 -> Ok(#(char, tail))
-        _ -> Error(Nil)
-      }
-    }
-    Error(_) -> Error(Nil)
+    Ok(#("0" as char, tail))
+    | Ok(#("1" as char, tail))
+    | Ok(#("2" as char, tail))
+    | Ok(#("3" as char, tail))
+    | Ok(#("4" as char, tail))
+    | Ok(#("5" as char, tail))
+    | Ok(#("6" as char, tail))
+    | Ok(#("7" as char, tail))
+    | Ok(#("8" as char, tail))
+    | Ok(#("9" as char, tail)) -> Ok(#(char, tail))
+
+    _ -> Error(Nil)
   }
 }
 
 // DIGIT (non-zero)    = %x31–39
 fn parse_digit_nz(str: String) -> Result(#(String, String), Nil) {
   case string.pop_grapheme(str) {
-    Ok(#(char, tail)) -> {
-      let assert [codepoint] = string.to_utf_codepoints(char)
-      let i = string.utf_codepoint_to_int(codepoint)
-      case i {
-        _ if i >= 0x31 && i <= 0x39 -> Ok(#(char, tail))
-        _ -> Error(Nil)
-      }
-    }
-    Error(_) -> Error(Nil)
+    Ok(#("1" as char, tail))
+    | Ok(#("2" as char, tail))
+    | Ok(#("3" as char, tail))
+    | Ok(#("4" as char, tail))
+    | Ok(#("5" as char, tail))
+    | Ok(#("6" as char, tail))
+    | Ok(#("7" as char, tail))
+    | Ok(#("8" as char, tail))
+    | Ok(#("9" as char, tail)) -> Ok(#(char, tail))
+
+    _ -> Error(Nil)
   }
 }
 
@@ -789,16 +793,60 @@ fn parse_digits(str: String, digits: String) {
 // ALPHA    = %x41–5A | %x61–7A
 fn parse_alpha(str: String) -> Result(#(String, String), Nil) {
   case string.pop_grapheme(str) {
-    Ok(#(char, tail)) -> {
-      let assert [codepoint] = string.to_utf_codepoints(char)
-      let i = string.utf_codepoint_to_int(codepoint)
-      case i {
-        _ if i >= 0x41 && i <= 0x5A -> Ok(#(char, tail))
-        _ if i >= 0x61 && i <= 0x7A -> Ok(#(char, tail))
-        _ -> Error(Nil)
-      }
-    }
-    Error(_) -> Error(Nil)
+    Ok(#("a" as char, tail))
+    | Ok(#("b" as char, tail))
+    | Ok(#("c" as char, tail))
+    | Ok(#("d" as char, tail))
+    | Ok(#("e" as char, tail))
+    | Ok(#("f" as char, tail))
+    | Ok(#("g" as char, tail))
+    | Ok(#("h" as char, tail))
+    | Ok(#("i" as char, tail))
+    | Ok(#("j" as char, tail))
+    | Ok(#("k" as char, tail))
+    | Ok(#("l" as char, tail))
+    | Ok(#("m" as char, tail))
+    | Ok(#("n" as char, tail))
+    | Ok(#("o" as char, tail))
+    | Ok(#("p" as char, tail))
+    | Ok(#("q" as char, tail))
+    | Ok(#("r" as char, tail))
+    | Ok(#("s" as char, tail))
+    | Ok(#("t" as char, tail))
+    | Ok(#("u" as char, tail))
+    | Ok(#("v" as char, tail))
+    | Ok(#("w" as char, tail))
+    | Ok(#("x" as char, tail))
+    | Ok(#("y" as char, tail))
+    | Ok(#("z" as char, tail))
+    | Ok(#("A" as char, tail))
+    | Ok(#("B" as char, tail))
+    | Ok(#("C" as char, tail))
+    | Ok(#("D" as char, tail))
+    | Ok(#("E" as char, tail))
+    | Ok(#("F" as char, tail))
+    | Ok(#("G" as char, tail))
+    | Ok(#("H" as char, tail))
+    | Ok(#("I" as char, tail))
+    | Ok(#("J" as char, tail))
+    | Ok(#("K" as char, tail))
+    | Ok(#("L" as char, tail))
+    | Ok(#("M" as char, tail))
+    | Ok(#("N" as char, tail))
+    | Ok(#("O" as char, tail))
+    | Ok(#("P" as char, tail))
+    | Ok(#("Q" as char, tail))
+    | Ok(#("R" as char, tail))
+    | Ok(#("S" as char, tail))
+    | Ok(#("T" as char, tail))
+    | Ok(#("U" as char, tail))
+    | Ok(#("V" as char, tail))
+    | Ok(#("W" as char, tail))
+    | Ok(#("X" as char, tail))
+    | Ok(#("Y" as char, tail))
+    | Ok(#("Z" as char, tail)) -> Ok(#(char, tail))
+
+    _ -> Error(Nil)
   }
 }
 

@@ -372,17 +372,30 @@ fn unescape_percent(str: String) -> String {
 
 pub fn parse_hex_digit(str: String) -> Result(#(String, String), Nil) {
   case string.pop_grapheme(str) {
-    Ok(#(char, tail)) -> {
-      let assert [codepoint] = string.to_utf_codepoints(char)
-      let i = string.utf_codepoint_to_int(codepoint)
-      case i {
-        _ if i >= 0x30 && i <= 0x39 -> Ok(#(char, tail))
-        _ if i >= 0x41 && i <= 0x46 -> Ok(#(char, tail))
-        _ if i >= 0x61 && i <= 0x66 -> Ok(#(char, tail))
-        _ -> Error(Nil)
-      }
-    }
-    Error(_) -> Error(Nil)
+    Ok(#("0" as char, tail))
+    | Ok(#("1" as char, tail))
+    | Ok(#("2" as char, tail))
+    | Ok(#("3" as char, tail))
+    | Ok(#("4" as char, tail))
+    | Ok(#("5" as char, tail))
+    | Ok(#("6" as char, tail))
+    | Ok(#("7" as char, tail))
+    | Ok(#("8" as char, tail))
+    | Ok(#("9" as char, tail))
+    | Ok(#("a" as char, tail))
+    | Ok(#("b" as char, tail))
+    | Ok(#("c" as char, tail))
+    | Ok(#("d" as char, tail))
+    | Ok(#("e" as char, tail))
+    | Ok(#("f" as char, tail))
+    | Ok(#("A" as char, tail))
+    | Ok(#("B" as char, tail))
+    | Ok(#("C" as char, tail))
+    | Ok(#("D" as char, tail))
+    | Ok(#("E" as char, tail))
+    | Ok(#("F" as char, tail)) -> Ok(#(char, tail))
+
+    _ -> Error(Nil)
   }
 }
 
