@@ -729,6 +729,7 @@ fn parse_unreserved(str: String) -> Result(#(String, String), Nil) {
 //               / "*" / "+" / "," / ";" / "="
 //                 %21 / %24 / %26 / %27 / %28 / %29
 //               / %2A / %2B / %2C / %3B / %3D
+@target(erlang)
 fn parse_sub_delim(str: String) -> Result(#(String, String), Nil) {
   case string.pop_grapheme(str) {
     Ok(#("!" as char, tail))
@@ -746,7 +747,26 @@ fn parse_sub_delim(str: String) -> Result(#(String, String), Nil) {
   }
 }
 
+@target(javascript)
+fn parse_sub_delim(str: String) -> Result(#(String, String), Nil) {
+  case str {
+    "!" as char <> tail
+    | "$" as char <> tail
+    | "&" as char <> tail
+    | "'" as char <> tail
+    | "(" as char <> tail
+    | ")" as char <> tail
+    | "*" as char <> tail
+    | "+" as char <> tail
+    | "," as char <> tail
+    | ";" as char <> tail
+    | "=" as char <> tail -> Ok(#(char, tail))
+    _ -> Error(Nil)
+  }
+}
+
 // DIGIT    = %x30–39
+@target(erlang)
 fn parse_digit(str: String) -> Result(#(String, String), Nil) {
   case string.pop_grapheme(str) {
     Ok(#("0" as char, tail))
@@ -764,7 +784,26 @@ fn parse_digit(str: String) -> Result(#(String, String), Nil) {
   }
 }
 
+@target(javascript)
+fn parse_digit(str: String) -> Result(#(String, String), Nil) {
+  case str {
+    "0" as char <> tail
+    | "1" as char <> tail
+    | "2" as char <> tail
+    | "3" as char <> tail
+    | "4" as char <> tail
+    | "5" as char <> tail
+    | "6" as char <> tail
+    | "7" as char <> tail
+    | "8" as char <> tail
+    | "9" as char <> tail -> Ok(#(char, tail))
+
+    _ -> Error(Nil)
+  }
+}
+
 // DIGIT (non-zero)    = %x31–39
+@target(erlang)
 fn parse_digit_nz(str: String) -> Result(#(String, String), Nil) {
   case string.pop_grapheme(str) {
     Ok(#("1" as char, tail))
@@ -781,6 +820,23 @@ fn parse_digit_nz(str: String) -> Result(#(String, String), Nil) {
   }
 }
 
+@target(javascript)
+fn parse_digit_nz(str: String) -> Result(#(String, String), Nil) {
+  case str {
+    "1" as char <> tail
+    | "2" as char <> tail
+    | "3" as char <> tail
+    | "4" as char <> tail
+    | "5" as char <> tail
+    | "6" as char <> tail
+    | "7" as char <> tail
+    | "8" as char <> tail
+    | "9" as char <> tail -> Ok(#(char, tail))
+
+    _ -> Error(Nil)
+  }
+}
+
 fn parse_digits(str: String, digits: String) {
   case parse_digit(str) {
     Ok(#(d, rest)) -> {
@@ -791,6 +847,7 @@ fn parse_digits(str: String, digits: String) {
 }
 
 // ALPHA    = %x41–5A | %x61–7A
+@target(erlang)
 fn parse_alpha(str: String) -> Result(#(String, String), Nil) {
   case string.pop_grapheme(str) {
     Ok(#("a" as char, tail))
@@ -845,6 +902,66 @@ fn parse_alpha(str: String) -> Result(#(String, String), Nil) {
     | Ok(#("X" as char, tail))
     | Ok(#("Y" as char, tail))
     | Ok(#("Z" as char, tail)) -> Ok(#(char, tail))
+
+    _ -> Error(Nil)
+  }
+}
+
+@target(javascript)
+fn parse_alpha(str: String) -> Result(#(String, String), Nil) {
+  case str {
+    "a" as char <> tail
+    | "b" as char <> tail
+    | "c" as char <> tail
+    | "d" as char <> tail
+    | "e" as char <> tail
+    | "f" as char <> tail
+    | "g" as char <> tail
+    | "h" as char <> tail
+    | "i" as char <> tail
+    | "j" as char <> tail
+    | "k" as char <> tail
+    | "l" as char <> tail
+    | "m" as char <> tail
+    | "n" as char <> tail
+    | "o" as char <> tail
+    | "p" as char <> tail
+    | "q" as char <> tail
+    | "r" as char <> tail
+    | "s" as char <> tail
+    | "t" as char <> tail
+    | "u" as char <> tail
+    | "v" as char <> tail
+    | "w" as char <> tail
+    | "x" as char <> tail
+    | "y" as char <> tail
+    | "z" as char <> tail
+    | "A" as char <> tail
+    | "B" as char <> tail
+    | "C" as char <> tail
+    | "D" as char <> tail
+    | "E" as char <> tail
+    | "F" as char <> tail
+    | "G" as char <> tail
+    | "H" as char <> tail
+    | "I" as char <> tail
+    | "J" as char <> tail
+    | "K" as char <> tail
+    | "L" as char <> tail
+    | "M" as char <> tail
+    | "N" as char <> tail
+    | "O" as char <> tail
+    | "P" as char <> tail
+    | "Q" as char <> tail
+    | "R" as char <> tail
+    | "S" as char <> tail
+    | "T" as char <> tail
+    | "U" as char <> tail
+    | "V" as char <> tail
+    | "W" as char <> tail
+    | "X" as char <> tail
+    | "Y" as char <> tail
+    | "Z" as char <> tail -> Ok(#(char, tail))
 
     _ -> Error(Nil)
   }
