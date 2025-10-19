@@ -370,37 +370,6 @@ fn unescape_percent(str: String) -> String {
   }
 }
 
-@target(erlang)
-pub fn parse_hex_digit(str: String) -> Result(#(String, String), Nil) {
-  case string.pop_grapheme(str) {
-    Ok(#("0" as char, tail))
-    | Ok(#("1" as char, tail))
-    | Ok(#("2" as char, tail))
-    | Ok(#("3" as char, tail))
-    | Ok(#("4" as char, tail))
-    | Ok(#("5" as char, tail))
-    | Ok(#("6" as char, tail))
-    | Ok(#("7" as char, tail))
-    | Ok(#("8" as char, tail))
-    | Ok(#("9" as char, tail))
-    | Ok(#("a" as char, tail))
-    | Ok(#("b" as char, tail))
-    | Ok(#("c" as char, tail))
-    | Ok(#("d" as char, tail))
-    | Ok(#("e" as char, tail))
-    | Ok(#("f" as char, tail))
-    | Ok(#("A" as char, tail))
-    | Ok(#("B" as char, tail))
-    | Ok(#("C" as char, tail))
-    | Ok(#("D" as char, tail))
-    | Ok(#("E" as char, tail))
-    | Ok(#("F" as char, tail)) -> Ok(#(char, tail))
-
-    _ -> Error(Nil)
-  }
-}
-
-@target(javascript)
 pub fn parse_hex_digit(str: String) -> Result(#(String, String), Nil) {
   case str {
     "0" as char <> tail
