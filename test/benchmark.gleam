@@ -89,11 +89,15 @@ pub fn parse_benchmark() {
 pub fn pop_benchmark() {
   benchmark.run(
     [
-      benchmark.Function("pop", fn(data) { fn() { pop(data, "") } }),
-      benchmark.Function("pop2", fn(data) { fn() { pop4(data, "") } }),
-      benchmark.Function("pop3", fn(data) { fn() { pop5(data, "") } }),
-      benchmark.Function("match", fn(data) { fn() { pop2(data, "") } }),
-      benchmark.Function("match_2", fn(data) { fn() { pop3(data, "") } }),
+      benchmark.Function("pop with range", fn(data) { fn() { pop(data, "") } }),
+      benchmark.Function("pop check char", fn(data) { fn() { pop4(data, "") } }),
+      benchmark.Function("pop check result", fn(data) {
+        fn() { pop5(data, "") }
+      }),
+      benchmark.Function("letter as var <> tail", fn(data) {
+        fn() { pop2(data, "") }
+      }),
+      benchmark.Function("letter <> tail", fn(data) { fn() { pop3(data, "") } }),
     ],
     [
       // benchmark.Data("long", "abcdefghijklmnopqrstuvwxyz"),
