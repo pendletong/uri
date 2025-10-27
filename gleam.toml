@@ -1,12 +1,12 @@
 name = "gluri"
-version = "2.0.3"
+version = "2.0.4"
 
 # Fill out these fields if you intend to generate HTML documentation or publish
 # your project to the Hex package manager.
 #
  description = "Uri (RFC 3986) library for Gleam"
  licences = ["Apache-2.0"]
- repository = { type = "github", user = "pendletong", repo = "uri" }
+ repository = { type = "gitea", host = "git.pendleton.ie", user = "pendletong", repo = "uri" }
  links = [{ title = "RFC 3986", href = "https://www.ietf.org/rfc/rfc3986.txt" }]
 #
 # For a full reference of all the available options, you can have a look at
