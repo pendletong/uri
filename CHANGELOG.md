@@ -26,3 +26,4 @@
 ## 2.0.4
 
 - Reverted some optimisations as they are unnecessary for Gleam v1.14.0+
+- Fix uri encoding/decoding (I think)
