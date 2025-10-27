@@ -1146,37 +1146,31 @@ pub fn equivalence_tests() {
   ])
 }
 
-const percent_codec_fixtures = [
-  #(" ", "%20"),
-  #(",", "%2C"),
-  #(";", "%3B"),
-  #(":", "%3A"),
-  #("!", "!"),
-  #("?", "%3F"),
-  #("'", "'"),
-  #("(", "("),
-  #(")", ")"),
-  #("[", "%5B"),
-  #("@", "%40"),
-  #("/", "%2F"),
-  #("\\", "%5C"),
+const percent_encode_examples = [
+  #("", ""),
+  #("%", "%25"),
+  #("%%", "%25%25"),
+  #(" \r\n\t\u{B}\f", "%20%0D%0A%09%0B%0C"),
+  #(
+    "-_.~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    "-_.~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  ),
+  #("\u{0}", "%00"),
+  #("abc\u{00}def", "abc%00def"),
   #("&", "%26"),
-  #("#", "%23"),
-  #("=", "%3D"),
-  #("~", "~"),
-  #("ñ", "%C3%B1"),
-  #("-", "-"),
-  #("_", "_"),
-  #(".", "."),
-  #("*", "*"),
-  #("+", "+"),
-  #("100% great+fun", "100%25%20great+fun"),
+  #(
+    "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~",
+    "%21%22%23%24%25%26%27%28%29%2A%2B%2C-.%2F%3A%3B%3C%3D%3E%3F%40%5B%5C%5D%5E_%60%7B%7C%7D~",
+  ),
+  #("“Aha”", "%E2%80%9CAha%E2%80%9D"),
+  #("\u{201C}Aha\u{201D}", "%E2%80%9CAha%E2%80%9D"),
+  #("*+,=>/", "%2A%2B%2C%3D%3E%2F"),
 ]
 
 pub fn percent_encode_tests() {
   describe("percent encoding", [
     it("encoding", fn() {
-      percent_codec_fixtures
+      percent_encode_examples
       |> list.map(fn(t) {
         let #(a, b) = t
         uri.percent_encode(a)
@@ -1185,7 +1179,7 @@ pub fn percent_encode_tests() {
       Nil
     }),
     it("decoding", fn() {
-      percent_codec_fixtures
+      percent_encode_examples
       |> list.map(fn(t) {
         let #(a, b) = t
         uri.percent_decode(b)

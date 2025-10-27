@@ -109,7 +109,7 @@ pub fn parse_min_max(
   do_parse_min_max(str, "", min, max, parse_fn)
 }
 
-pub fn do_parse_min_max(
+fn do_parse_min_max(
   str: d,
   acc: String,
   min: Int,
@@ -403,14 +403,6 @@ pub fn parse_hex_digits(str, min, max) {
   parse_min_max(str, min, max, parse_hex_digit)
 }
 
-fn encoding_not_needed(i: Int) -> Bool {
-  // $-_.+!*'()
-  case i {
-    36 | 45 | 95 | 46 | 43 | 33 | 42 | 39 | 40 | 41 -> True
-    _ -> False
-  }
-}
-
 fn is_unreserved_char(i: Int) -> Bool {
   case i {
     45 | 46 | 95 | 126 -> True
@@ -660,13 +652,13 @@ pub fn do_percent_encode(str: String) -> String {
 fn encode_codepoint(codepoint: Int) -> String {
   case codepoint <= 127 {
     True -> {
-      case is_unreserved_char(codepoint) || encoding_not_needed(codepoint) {
+      case is_unreserved_char(codepoint) {
         True -> {
           let assert Ok(cpnt) = string.utf_codepoint(codepoint)
           string.from_utf_codepoints([cpnt])
         }
         False -> {
-          "%" <> int.to_base16(codepoint)
+          "%" <> string.pad_start(int.to_base16(codepoint), 2, "0")
         }
       }
     }
