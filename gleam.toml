@@ -6,7 +6,7 @@ version = "2.0.4"
 #
  description = "Uri (RFC 3986) library for Gleam"
  licences = ["Apache-2.0"]
- repository = { type = "gitea", host = "git.pendleton.ie", user = "pendletong", repo = "uri" }
+ repository = { type = "github", user = "pendletong", repo = "uri" }
  links = [{ title = "RFC 3986", href = "https://www.ietf.org/rfc/rfc3986.txt" }]
 #
 # For a full reference of all the available options, you can have a look at
