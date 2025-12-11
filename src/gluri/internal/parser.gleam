@@ -538,17 +538,7 @@ fn parse_path_absolute(str: String) -> Result(#(Uri, String), Nil) {
           rest,
           parse_this_then(_, [
             do_parse_segment_nz,
-            parse_optional_result(
-              _,
-              parse_multiple(_, fn(str) {
-                case str {
-                  "/" <> rest -> {
-                    do_parse_segment(rest, do_parse_pchar, "/")
-                  }
-                  _ -> Error(Nil)
-                }
-              }),
-            ),
+            parse_optional_result(_, parse_multiple_segments),
           ]),
         )
 
@@ -562,18 +552,7 @@ fn parse_path_absolute(str: String) -> Result(#(Uri, String), Nil) {
 fn parse_path_noscheme(str: String) -> Result(#(Uri, String), Nil) {
   use #(seg1, rest) <- result.try(do_parse_segment_nz_nc(str))
 
-  let #(segs, rest) =
-    parse_optional(
-      rest,
-      parse_multiple(_, fn(str) {
-        case str {
-          "/" <> rest -> {
-            do_parse_segment(rest, do_parse_pchar, "/")
-          }
-          _ -> Error(Nil)
-        }
-      }),
-    )
+  let #(segs, rest) = parse_optional(rest, parse_multiple_segments)
 
   Ok(#(Uri(None, None, None, None, seg1 <> segs, None, None), rest))
 }
@@ -582,18 +561,7 @@ fn parse_path_noscheme(str: String) -> Result(#(Uri, String), Nil) {
 fn parse_path_rootless(str: String) -> Result(#(Uri, String), Nil) {
   use #(seg1, rest) <- result.try(do_parse_segment_nz(str))
 
-  let #(segs, rest) =
-    parse_optional(
-      rest,
-      parse_multiple(_, fn(str) {
-        case str {
-          "/" <> rest -> {
-            do_parse_segment(rest, do_parse_pchar, "/")
-          }
-          _ -> Error(Nil)
-        }
-      }),
-    )
+  let #(segs, rest) = parse_optional(rest, parse_multiple_segments)
 
   Ok(#(Uri(None, None, None, None, seg1 <> segs, None, None), rest))
 }
@@ -613,6 +581,15 @@ fn do_parse_segment(
     Error(Nil) | Ok(#("", _)) -> Ok(#(segment, str))
     Ok(#(l, rest)) -> do_parse_segment(rest, char_fn, segment <> l)
   }
+}
+
+fn parse_multiple_segments(str: String) -> Result(#(String, String), Nil) {
+  parse_multiple(str, fn(str) {
+    case str {
+      "/" <> rest -> do_parse_segment(rest, do_parse_pchar, "/")
+      _ -> Error(Nil)
+    }
+  })
 }
 
 // segment-nz    = 1*pchar
