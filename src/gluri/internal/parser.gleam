@@ -186,7 +186,10 @@ fn parse_userinfo(str: String) -> #(Option(String), String) {
   }
 }
 
-fn do_parse_userinfo(str: String, userinfo: String) -> #(Option(String), String) {
+fn do_parse_userinfo(
+  str: String,
+  userinfo: String,
+) -> #(Option(String), String) {
   case str {
     "@" <> rest -> #(Some(userinfo), rest)
     "" -> #(None, userinfo <> str)
@@ -239,7 +242,7 @@ fn parse_ip_literal(str: String) {
         rest,
       ))
       case rest {
-        "]" <> rest -> Ok(#(ip, rest))
+        "]" <> rest -> Ok(#("[" <> ip <> "]", rest))
         _ -> Error(Nil)
       }
     }
@@ -823,7 +826,9 @@ fn parse_alpha(str: String) -> Result(#(String, String), Nil) {
   }
 }
 
-pub fn parse_query_parts(query: String) -> Result(List(#(String, String)), Nil) {
+pub fn parse_query_parts(
+  query: String,
+) -> Result(List(#(String, String)), Nil) {
   let splitter = splitter.new(["&"])
 
   do_parse_query_parts(splitter, query, [])

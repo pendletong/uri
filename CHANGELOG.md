@@ -32,3 +32,7 @@
 
 - Updated libraries
 - Fixed IPV6 parsing (hopefully)
+
+## 2.0.6
+
+- Fix [] wrapping for IPv6 and IPvFuture
