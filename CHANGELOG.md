@@ -27,3 +27,8 @@
 
 - Reverted some optimisations as they are unnecessary for Gleam v1.14.0+
 - Fix uri encoding/decoding (I think)
+
+## 2.0.5
+
+- Updated libraries
+- Fixed IPV6 parsing (hopefully)
