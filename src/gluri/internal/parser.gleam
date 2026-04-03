@@ -6,8 +6,8 @@ import gleam/string
 import gleam/uri.{type Uri, Uri, empty}
 import gluri/internal/utils.{
   combine_uris, parse_hex_digit, parse_hex_digits, parse_min_max, parse_multiple,
-  parse_optional, parse_optional_result, parse_this_then, percent_decode,
-  try_parsers,
+  parse_no_retain, parse_optional, parse_optional_result, parse_this_then,
+  percent_decode, try_parsers,
 }
 import splitter
 
@@ -281,6 +281,24 @@ fn parse_ipvfuture(str: String) {
   }
 }
 
+fn parse_ipv6_network(str: String, max_segments: Int) {
+  case max_segments {
+    0 -> Ok(#("", str))
+    _ -> {
+      case
+        parse_this_then(str, [
+          parse_min_max(_, max_segments - 1, max_segments - 1, parse_h16_colon),
+          parse_h16,
+          parse_no_retain(_, parse_colons),
+        ])
+      {
+        Ok(#(parsed, rest)) -> Ok(#(parsed, rest))
+        Error(_) -> parse_ipv6_network(str, max_segments - 1)
+      }
+    }
+  }
+}
+
 // IPv6address   =                            6( h16 ":" ) ls32
 //              /                       "::" 5( h16 ":" ) ls32
 //              / [               h16 ] "::" 4( h16 ":" ) ls32
@@ -306,53 +324,35 @@ fn parse_ipv6(str: String) {
         parse_ls32,
       ]),
       parse_this_then(_, [
-        parse_optional_result(
-          _,
-          parse_this_then(_, [parse_h16s(_, 1), parse_h16]),
-        ),
+        parse_optional_result(_, parse_ipv6_network(_, 2)),
         parse_colons,
         parse_min_max(_, 3, 3, parse_h16_colon),
         parse_ls32,
       ]),
       parse_this_then(_, [
-        parse_optional_result(
-          _,
-          parse_this_then(_, [parse_h16s(_, 2), parse_h16]),
-        ),
+        parse_optional_result(_, parse_ipv6_network(_, 3)),
         parse_colons,
         parse_min_max(_, 2, 2, parse_h16_colon),
         parse_ls32,
       ]),
       parse_this_then(_, [
-        parse_optional_result(
-          _,
-          parse_this_then(_, [parse_h16s(_, 3), parse_h16]),
-        ),
+        parse_optional_result(_, parse_ipv6_network(_, 4)),
         parse_colons,
         parse_min_max(_, 1, 1, parse_h16_colon),
         parse_ls32,
       ]),
       parse_this_then(_, [
-        parse_optional_result(
-          _,
-          parse_this_then(_, [parse_h16s(_, 4), parse_h16]),
-        ),
+        parse_optional_result(_, parse_ipv6_network(_, 5)),
         parse_colons,
         parse_ls32,
       ]),
       parse_this_then(_, [
-        parse_optional_result(
-          _,
-          parse_this_then(_, [parse_h16s(_, 5), parse_h16]),
-        ),
+        parse_optional_result(_, parse_ipv6_network(_, 6)),
         parse_colons,
         parse_h16,
       ]),
       parse_this_then(_, [
-        parse_optional_result(
-          _,
-          parse_this_then(_, [parse_h16s(_, 6), parse_h16]),
-        ),
+        parse_optional_result(_, parse_ipv6_network(_, 7)),
         parse_colons,
       ]),
     ],
@@ -370,10 +370,6 @@ fn parse_colons(str: String) {
 // h16           = 1*4HEXDIG
 fn parse_h16(str: String) {
   parse_hex_digits(str, 1, 4)
-}
-
-fn parse_h16s(str: String, max) {
-  parse_min_max(str, 0, max, parse_h16_colon)
 }
 
 fn parse_h16_pair(str: String) {

@@ -100,6 +100,16 @@ pub fn try_parsers(
   }
 }
 
+pub fn parse_no_retain(
+  to_parse: String,
+  parser: fn(String) -> Result(#(String, String), Nil),
+) {
+  case parser(to_parse) {
+    Ok(#(parsed, rest)) -> Ok(#("", parsed <> rest))
+    Error(_) -> Error(Nil)
+  }
+}
+
 pub fn parse_min_max(
   str: f,
   min: Int,
@@ -116,17 +126,22 @@ fn do_parse_min_max(
   max: Int,
   parse_fn: fn(d) -> Result(#(String, d), e),
 ) -> Result(#(String, d), Nil) {
-  case parse_fn(str) {
-    Error(_) -> {
-      case min > 0 {
-        True -> Error(Nil)
-        False -> Ok(#(acc, str))
-      }
-    }
-    Ok(#(l, rest)) -> {
-      case max {
-        1 -> Ok(#(acc <> l, rest))
-        _ -> do_parse_min_max(rest, acc <> l, min - 1, max - 1, parse_fn)
+  case max {
+    0 -> Ok(#(acc, str))
+    _ -> {
+      case parse_fn(str) {
+        Error(_) -> {
+          case min > 0 {
+            True -> Error(Nil)
+            False -> Ok(#(acc, str))
+          }
+        }
+        Ok(#(l, rest)) -> {
+          case max {
+            1 -> Ok(#(acc <> l, rest))
+            _ -> do_parse_min_max(rest, acc <> l, min - 1, max - 1, parse_fn)
+          }
+        }
       }
     }
   }
