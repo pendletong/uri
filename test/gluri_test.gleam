@@ -190,6 +190,100 @@ pub fn parse_userinfo_tests() {
   ])
 }
 
+pub fn parse_ipv6_tests() {
+  it("ipv6 parsing", fn() {
+    uri.parse("//[::127.0.0.1]")
+    |> should.equal(Ok(Uri(..empty, host: Some("::127.0.0.1"))))
+    uri.parse("//[2001:0db8:0000:0000:0000:0000:1428:07ab]")
+    |> should.equal(Ok(
+      Uri(..empty, host: Some("2001:0db8:0000:0000:0000:0000:1428:07ab")),
+    ))
+    uri.parse("//[2600:1406:bc00:53::b81e:94c8]")
+    |> should.equal(Ok(Uri(..empty, host: Some("2600:1406:bc00:53::b81e:94c8"))))
+    uri.parse("//[2001:0db8:0000:0000:0000:0000:0000:0001]")
+    |> should.equal(Ok(
+      Uri(..empty, host: Some("2001:0db8:0000:0000:0000:0000:0000:0001")),
+    ))
+    uri.parse("//[2001:db8:0:0:0:0:0:1]")
+    |> should.equal(Ok(Uri(..empty, host: Some("2001:db8:0:0:0:0:0:1"))))
+    uri.parse("//[2001:db8::1]")
+    |> should.equal(Ok(Uri(..empty, host: Some("2001:db8::1"))))
+    uri.parse("//[2001:db8::1:1111]")
+    |> should.equal(Ok(Uri(..empty, host: Some("2001:db8::1:1111"))))
+    uri.parse("//[::1]")
+    |> should.equal(Ok(Uri(..empty, host: Some("::1"))))
+    uri.parse("//[fe80::1]")
+    |> should.equal(Ok(Uri(..empty, host: Some("fe80::1"))))
+    uri.parse("//[2620:0:0:0:0:0:0:1]")
+    |> should.equal(Ok(Uri(..empty, host: Some("2620:0:0:0:0:0:0:1"))))
+    uri.parse("//[fd00:abcd:ef00::1]")
+    |> should.equal(Ok(Uri(..empty, host: Some("fd00:abcd:ef00::1"))))
+    uri.parse("//[ff02::1]")
+    |> should.equal(Ok(Uri(..empty, host: Some("ff02::1"))))
+    uri.parse("//[::ffff:192.0.2.1]")
+    |> should.equal(Ok(Uri(..empty, host: Some("::ffff:192.0.2.1"))))
+    uri.parse("//[::]")
+    |> should.equal(Ok(Uri(..empty, host: Some("::"))))
+    uri.parse("//[::ffff:255.255.255.255]")
+    |> should.equal(Ok(Uri(..empty, host: Some("::ffff:255.255.255.255"))))
+    uri.parse("//[::1234]")
+    |> should.equal(Ok(Uri(..empty, host: Some("::1234"))))
+    uri.parse("//[ABCD:EF00::1234]")
+    |> should.equal(Ok(Uri(..empty, host: Some("ABCD:EF00::1234"))))
+    uri.parse("//[abcd:ef00::1234]")
+    |> should.equal(Ok(Uri(..empty, host: Some("abcd:ef00::1234"))))
+    uri.parse("//[2001:db8:85a3::8a2e:370:7334]")
+    |> should.equal(Ok(Uri(..empty, host: Some("2001:db8:85a3::8a2e:370:7334"))))
+    uri.parse("//[2001:0db8:85a3::8a2e:0:7334]")
+    |> should.equal(Ok(Uri(..empty, host: Some("2001:0db8:85a3::8a2e:0:7334"))))
+    uri.parse("//[fe80:0:0:0:0:0:0:1]")
+    |> should.equal(Ok(Uri(..empty, host: Some("fe80:0:0:0:0:0:0:1"))))
+    uri.parse("//[2001:db8::ffff:1234]")
+    |> should.equal(Ok(Uri(..empty, host: Some("2001:db8::ffff:1234"))))
+    uri.parse("//[2001:db8::]")
+    |> should.equal(Ok(Uri(..empty, host: Some("2001:db8::"))))
+    uri.parse("//[::ffff:192.168.1.1]")
+    |> should.equal(Ok(Uri(..empty, host: Some("::ffff:192.168.1.1"))))
+    uri.parse("//[::]")
+    |> should.equal(Ok(Uri(..empty, host: Some("::"))))
+    uri.parse("//[fe80::]")
+    |> should.equal(Ok(Uri(..empty, host: Some("fe80::"))))
+    uri.parse("//[2001:db8:0:0:0:0:0:0]")
+    |> should.equal(Ok(Uri(..empty, host: Some("2001:db8:0:0:0:0:0:0"))))
+    uri.parse("//[2001:db8:0:0:0:0:0:1]")
+    |> should.equal(Ok(Uri(..empty, host: Some("2001:db8:0:0:0:0:0:1"))))
+    uri.parse("//[2001:db8::2:1:0]")
+    |> should.equal(Ok(Uri(..empty, host: Some("2001:db8::2:1:0"))))
+    uri.parse("//[fe80::1:2:3]")
+    |> should.equal(Ok(Uri(..empty, host: Some("fe80::1:2:3"))))
+    uri.parse("//[fe80::1234:5678]")
+    |> should.equal(Ok(Uri(..empty, host: Some("fe80::1234:5678"))))
+    uri.parse("//[fe80::1234:5678:9abc:dead]")
+    |> should.equal(Ok(Uri(..empty, host: Some("fe80::1234:5678:9abc:dead"))))
+    uri.parse("//[fe80::1234:5678:9abc:beef]")
+    |> should.equal(Ok(Uri(..empty, host: Some("fe80::1234:5678:9abc:beef"))))
+    uri.parse("//[fe80::1234:5678:9abc:bef]")
+    |> should.equal(Ok(Uri(..empty, host: Some("fe80::1234:5678:9abc:bef"))))
+
+    uri.parse("//[::1::1]") |> should.be_error
+    uri.parse("//[2001:db8:0:0:0:0:0:1:1]") |> should.be_error
+
+    uri.parse("//[1234:5678:9012:3456:7890:1234:5678]") |> should.be_error
+    uri.parse("//[2001:gg:0:0:0:0:0:1]") |> should.be_error
+    uri.parse("//[2001:db8::1234:5678:9012:3456:7890:1234:5678]")
+    |> should.be_error
+    uri.parse("//[:::1]") |> should.be_error
+    uri.parse("//[1234:5678:9012:3456:7890:1234:5678:9012:1111]")
+    |> should.be_error
+    uri.parse("//[2001:db8:85a3:0:8a2e:0:7334]") |> should.be_error
+    uri.parse("//[fe80::1%]") |> should.be_error
+    uri.parse("//[2001:db8::11111111]") |> should.be_error
+    uri.parse("//[fe80::1:80%10]") |> should.be_error
+    uri.parse("//[::ffff:]") |> should.be_error
+    uri.parse("//[2001:db8::ff00::1]") |> should.be_error
+  })
+}
+
 pub fn parse_host_tests() {
   describe("host parsing", [
     it("simple parse", fn() {
@@ -236,6 +330,10 @@ pub fn parse_host_tests() {
       uri.parse("//[2001:0db8:0000:0000:0000:0000:1428:07ab]")
       |> should.equal(Ok(
         Uri(..empty, host: Some("2001:0db8:0000:0000:0000:0000:1428:07ab")),
+      ))
+      uri.parse("//[2600:1406:bc00:53::b81e:94c8]")
+      |> should.equal(Ok(
+        Uri(..empty, host: Some("2600:1406:bc00:53::b81e:94c8")),
       ))
       uri.parse("//[::127.0.0.1]/over/there")
       |> should.equal(Ok(
