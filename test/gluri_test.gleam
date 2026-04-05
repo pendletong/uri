@@ -275,7 +275,8 @@ pub fn parse_ipv6_tests() {
 
     uri.parse("//[::1::1]") |> should.be_error
     uri.parse("//[2001:db8:0:0:0:0:0:1:1]") |> should.be_error
-
+    uri.parse("//[1234:5678:9012:3456:7890:1234:5678:9012::]")
+    |> should.be_error
     uri.parse("//[1234:5678:9012:3456:7890:1234:5678]") |> should.be_error
     uri.parse("//[2001:gg:0:0:0:0:0:1]") |> should.be_error
     uri.parse("//[2001:db8::1234:5678:9012:3456:7890:1234:5678]")
