@@ -221,7 +221,6 @@ pub fn parse_ipv6_tests() {
     "//[1234:5678:9012:3456:7890:1234:5678]",
     "//[2001:gg:0:0:0:0:0:1]",
     "//[2001:db8::1234:5678:9012:3456:7890:1234:5678]",
-    "//[:::1]",
     "//[1234:5678:9012:3456:7890:1234:5678:9012:1111]",
     "//[2001:db8:85a3:0:8a2e:0:7334]",
     "//[fe80::1%]",
@@ -230,6 +229,10 @@ pub fn parse_ipv6_tests() {
     "//[::ffff:]",
     "//[2001:db8::ff00::1]",
     "//[2600:1406:bc00:53::1234:5678:b81e:94c8]",
+    "//[::ffff:00.00.00.01]",
+    "//[::ffff:0000:0000:0000:0000:0000:0000:0000]",
+    "//[0:1:2:3:4:5:6:7::]",
+    "//[::ffff:999.0.0.1]",
   ]
 
   let valid = [
@@ -252,6 +255,7 @@ pub fn parse_ipv6_tests() {
     "//[::1234]",
     "//[ABCD:EF00::1234]",
     "//[abcd:ef00::1234]",
+    "//[aBcD:eF00::1234]",
     "//[2001:db8:85a3::8a2e:370:7334]",
     "//[2001:0db8:85a3::8a2e:0:7334]",
     "//[fe80:0:0:0:0:0:0:1]",
@@ -260,26 +264,41 @@ pub fn parse_ipv6_tests() {
     "//[::ffff:192.168.1.1]",
     "//[fe80::]",
     "//[2001:db8:0:0:0:0:0:0]",
-    "//[2001:db8:0:0:0:0:0:1]",
     "//[2001:db8::2:1:0]",
     "//[fe80::1:2:3]",
     "//[fe80::1234:5678]",
     "//[fe80::1234:5678:9abc:dead]",
     "//[fe80::1234:5678:9abc:beef]",
     "//[fe80::1234:5678:9abc:bef]",
+    "//[::ffff:0.0.0.1]",
+    "//[0:0:0:0:0:0:0:0]",
+    "//[::ffff:0.0.0.0]",
+    "//[::ffff:0000:0000:0000:0000:0000:0000]",
+    "//[0:1:2:3:4:5:6:7]",
   ]
 
-  it("ipv6 parsing", fn() {
-    list.each(invalid, fn(invalid_uri) {
-      uri.parse(invalid_uri) |> should.be_error
-    })
-    list.each(valid, fn(valid_uri) {
-      uri.parse(valid_uri)
+  describe("ipv6 tests", [
+    it("basic ipv6 parsing", fn() {
+      list.each(invalid, fn(invalid_uri) {
+        uri.parse(invalid_uri) |> should.be_error
+      })
+      list.each(valid, fn(valid_uri) {
+        uri.parse(valid_uri)
+        |> should.equal(Ok(
+          Uri(..empty, host: Some(string.drop_start(valid_uri, 2))),
+        ))
+      })
+    }),
+
+    it("ipv6 with port parsing", fn() {
+      uri.parse("//[2001:db8::1]:80")
       |> should.equal(Ok(
-        Uri(..empty, host: Some(string.drop_start(valid_uri, 2))),
+        Uri(..empty, host: Some("[2001:db8::1]"), port: Some(80)),
       ))
-    })
-  })
+      uri.parse("//[::1]:80")
+      |> should.equal(Ok(Uri(..empty, host: Some("[::1]"), port: Some(80))))
+    }),
+  ])
 }
 
 pub fn parse_host_tests() {
