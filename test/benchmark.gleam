@@ -16,17 +16,18 @@ pub fn main() {
 @target(erlang)
 pub fn parse_benchmark() {
   let data = [
-    benchmark.Data("simple", "http://github.com"),
-    benchmark.Data(
-      "long",
-      "https://github.com/gleam-lang/stdlib/issues/523#issuecomment-3288230480",
-    ),
-    benchmark.Data(
-      "with user",
-      "https://test_name:user%20$$$@github.com/gleam-lang/stdlib/issues/523#issuecomment-3288230480",
-    ),
-    benchmark.Data("ipv4", "https://192.255.36.4/"),
+    // benchmark.Data("simple", "http://github.com"),
+    // benchmark.Data(
+    //   "long",
+    //   "https://github.com/gleam-lang/stdlib/issues/523#issuecomment-3288230480",
+    // ),
+    // benchmark.Data(
+    //   "with user",
+    //   "https://test_name:user%20$$$@github.com/gleam-lang/stdlib/issues/523#issuecomment-3288230480",
+    // ),
+    // benchmark.Data("ipv4", "https://192.255.36.4/"),
     benchmark.Data("ipv6", "http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"),
+    benchmark.Data("ipv6 short", "http://[2001:0db8::1]"),
   ]
 
   list.each(data, fn(data) {
