@@ -16,5 +16,12 @@ pub fn main() {
   let _ = uri.parse("/abc/def") |> echo
   let _ = uri2.parse("/abc/def") |> echo
   let _ = uri.parse("/abc/") |> echo
+
+  let _ = uri.parse("//[2600:1406:bc00:53::b81e:94c8]") |> echo
+  let _ = uri.parse("//[::2600:1406:0000:bc00:53:b81e:94c8]/") |> echo
+  let _ = uri.parse("//[::2600]/") |> echo
+  let _ = uri.parse("//[::]/") |> echo
+  let _ = uri.parse("//[::127.0.0.1]/") |> echo
+
   Nil
 }

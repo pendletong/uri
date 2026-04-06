@@ -100,48 +100,61 @@ pub fn try_parsers(
   }
 }
 
-pub fn parse_no_retain(
-  to_parse: String,
-  parser: fn(String) -> Result(#(String, String), Nil),
-) {
-  case parser(to_parse) {
-    Ok(#(parsed, rest)) -> Ok(#("", parsed <> rest))
-    Error(_) -> Error(Nil)
+pub fn parse_count(
+  str: f,
+  max: Int,
+  parse_fn: fn(f) -> Result(#(String, f), g),
+) -> #(Int, String, f) {
+  do_parse_count(str, 0, "", max, parse_fn)
+}
+
+fn do_parse_count(
+  str: f,
+  i: Int,
+  acc: String,
+  max: Int,
+  parse_fn: fn(f) -> Result(#(String, f), g),
+) -> #(Int, String, f) {
+  case i == max {
+    True -> #(i, acc, str)
+    False -> {
+      case parse_fn(str) {
+        Error(_) -> #(i, acc, str)
+        Ok(#(l, rest)) -> do_parse_count(rest, i + 1, acc <> l, max, parse_fn)
+      }
+    }
   }
 }
 
 pub fn parse_min_max(
-  str: f,
+  str: d,
   min: Int,
   max: Int,
-  parse_fn: fn(f) -> Result(#(String, f), g),
-) -> Result(#(String, f), Nil) {
-  do_parse_min_max(str, "", min, max, parse_fn)
+  parse_fn: fn(d) -> Result(#(String, d), e),
+) -> Result(#(String, d), Nil) {
+  do_parse_min_max(str, "", 0, min, max, parse_fn)
 }
 
 fn do_parse_min_max(
   str: d,
   acc: String,
+  i: Int,
   min: Int,
   max: Int,
   parse_fn: fn(d) -> Result(#(String, d), e),
 ) -> Result(#(String, d), Nil) {
-  case max {
-    0 -> Ok(#(acc, str))
-    _ -> {
+  case i == max {
+    True -> Ok(#(acc, str))
+    False -> {
       case parse_fn(str) {
         Error(_) -> {
-          case min > 0 {
+          case min > i {
             True -> Error(Nil)
             False -> Ok(#(acc, str))
           }
         }
-        Ok(#(l, rest)) -> {
-          case max {
-            1 -> Ok(#(acc <> l, rest))
-            _ -> do_parse_min_max(rest, acc <> l, min - 1, max - 1, parse_fn)
-          }
-        }
+        Ok(#(l, rest)) ->
+          do_parse_min_max(rest, acc <> l, i + 1, min, max, parse_fn)
       }
     }
   }

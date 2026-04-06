@@ -5,8 +5,8 @@ import gleam/result
 import gleam/string
 import gleam/uri.{type Uri, Uri, empty}
 import gluri/internal/utils.{
-  combine_uris, parse_hex_digit, parse_hex_digits, parse_min_max, parse_multiple,
-  parse_no_retain, parse_optional, parse_optional_result, parse_this_then,
+  combine_uris, parse_count, parse_hex_digit, parse_hex_digits, parse_min_max,
+  parse_multiple, parse_optional, parse_optional_result, parse_this_then,
   percent_decode, try_parsers,
 }
 import splitter
@@ -281,24 +281,6 @@ fn parse_ipvfuture(str: String) {
   }
 }
 
-fn parse_ipv6_network(str: String, max_segments: Int) {
-  case max_segments {
-    0 -> Ok(#("", str))
-    _ -> {
-      case
-        parse_this_then(str, [
-          parse_min_max(_, max_segments - 1, max_segments - 1, parse_h16_colon),
-          parse_h16,
-          parse_no_retain(_, parse_colons),
-        ])
-      {
-        Ok(#(parsed, rest)) -> Ok(#(parsed, rest))
-        Error(_) -> parse_ipv6_network(str, max_segments - 1)
-      }
-    }
-  }
-}
-
 // IPv6address   =                            6( h16 ":" ) ls32
 //              /                       "::" 5( h16 ":" ) ls32
 //              / [               h16 ] "::" 4( h16 ":" ) ls32
@@ -312,52 +294,49 @@ fn parse_ipv6(str: String) {
   try_parsers(
     [
       parse_this_then(_, [parse_min_max(_, 6, 6, parse_h16_colon), parse_ls32]),
-      parse_this_then(_, [
-        parse_colons,
-        parse_min_max(_, 5, 5, parse_h16_colon),
-        parse_ls32,
-      ]),
-      parse_this_then(_, [
-        parse_optional_result(_, parse_h16),
-        parse_colons,
-        parse_min_max(_, 4, 4, parse_h16_colon),
-        parse_ls32,
-      ]),
-      parse_this_then(_, [
-        parse_optional_result(_, parse_ipv6_network(_, 2)),
-        parse_colons,
-        parse_min_max(_, 3, 3, parse_h16_colon),
-        parse_ls32,
-      ]),
-      parse_this_then(_, [
-        parse_optional_result(_, parse_ipv6_network(_, 3)),
-        parse_colons,
-        parse_min_max(_, 2, 2, parse_h16_colon),
-        parse_ls32,
-      ]),
-      parse_this_then(_, [
-        parse_optional_result(_, parse_ipv6_network(_, 4)),
-        parse_colons,
-        parse_min_max(_, 1, 1, parse_h16_colon),
-        parse_ls32,
-      ]),
-      parse_this_then(_, [
-        parse_optional_result(_, parse_ipv6_network(_, 5)),
-        parse_colons,
-        parse_ls32,
-      ]),
-      parse_this_then(_, [
-        parse_optional_result(_, parse_ipv6_network(_, 6)),
-        parse_colons,
-        parse_h16,
-      ]),
-      parse_this_then(_, [
-        parse_optional_result(_, parse_ipv6_network(_, 7)),
-        parse_colons,
-      ]),
+      do_parse_ipv6,
     ],
     str,
   )
+}
+
+fn do_parse_ipv6(str: String) {
+  let #(count, acc, str) = parse_count(str, 6, parse_h16_colon)
+  case
+    parse_this_then(str, [
+      parse_optional_result(_, parse_h16),
+      parse_colons,
+    ])
+  {
+    Error(_) -> Error(Nil)
+    Ok(#(h16, rest)) -> {
+      let count = case h16 {
+        "::" -> count
+        _ -> count + 1
+      }
+      case do_parse_ipv6_after_colon(rest, count) {
+        Ok(#(rhs, rest)) -> Ok(#(acc <> h16 <> rhs, rest))
+        Error(_) -> Ok(#(acc <> h16, rest))
+      }
+    }
+  }
+}
+
+fn do_parse_ipv6_after_colon(str: String, count: Int) {
+  let parsers =
+    list.drop(
+      [
+        parse_this_then(_, [parse_min_max(_, 5, 5, parse_h16_colon), parse_ls32]),
+        parse_this_then(_, [parse_min_max(_, 4, 4, parse_h16_colon), parse_ls32]),
+        parse_this_then(_, [parse_min_max(_, 3, 3, parse_h16_colon), parse_ls32]),
+        parse_this_then(_, [parse_min_max(_, 2, 2, parse_h16_colon), parse_ls32]),
+        parse_this_then(_, [parse_min_max(_, 1, 1, parse_h16_colon), parse_ls32]),
+        parse_ls32,
+        parse_h16,
+      ],
+      count,
+    )
+  try_parsers(parsers, str)
 }
 
 fn parse_colons(str: String) {
@@ -386,6 +365,7 @@ fn parse_h16_pair(str: String) {
 fn parse_h16_colon(str: String) {
   use #(h16, rest) <- result.try(parse_h16(str))
   case rest {
+    "::" <> _ -> Error(Nil)
     ":" <> rest -> Ok(#(h16 <> ":", rest))
     _ -> Error(Nil)
   }
