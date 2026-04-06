@@ -24,7 +24,9 @@ pub fn main() {
   // let _ = uri.parse("//[::1%2]/") |> echo
   // let _ = uri2.parse("//[::1%2]/") |> echo
   // let _ = uri.parse("//[::127.0.0.1]/") |> echo
-  let _ = uri2.parse("//[0:1:2:3:4:5:6::]/") |> echo
+  // let _ = uri2.parse("//[0:1:2:3:4:5:6::]/") |> echo
+  let assert Error(Nil) =
+    uri.parse("//[2600:1406:bc00:53::b81e:94c8:1111:2222]") |> echo
 
   Nil
 }

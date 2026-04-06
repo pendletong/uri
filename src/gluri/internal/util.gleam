@@ -11,7 +11,7 @@ type Scheme {
   Scheme(name: String, port: Int)
 }
 
-const scheme_port = [
+const scheme_port: List(Scheme) = [
   Scheme("http", 80),
   Scheme("https", 443),
   Scheme("ftp", 21),
@@ -279,7 +279,11 @@ pub fn normalise(uri: Uri) -> Uri {
   Uri(scheme, userinfo, host, port, path, query, fragment)
 }
 
-pub fn path_normalise(str: String, scheme: Option(String), host: Option(String)) {
+pub fn path_normalise(
+  str: String,
+  scheme: Option(String),
+  host: Option(String),
+) -> String {
   case str {
     "" -> {
       case scheme {
@@ -427,7 +431,11 @@ pub fn parse_hex_digit(str: String) -> Result(#(String, String), Nil) {
   }
 }
 
-pub fn parse_hex_digits(str, min, max) {
+pub fn parse_hex_digits(
+  str: String,
+  min: Int,
+  max: Int,
+) -> Result(#(String, String), Nil) {
   parse_min_max(str, min, max, parse_hex_digit)
 }
 
@@ -663,7 +671,7 @@ fn decode_4byte_utf(
   Ok(#(string.from_utf_codepoints([res]), rest))
 }
 
-fn within_byte_range(str: String) {
+fn within_byte_range(str: String) -> Bool {
   case str {
     "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" -> False
     _ -> True

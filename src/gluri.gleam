@@ -5,7 +5,7 @@ import gleam/option.{Some}
 import gleam/string
 import gleam/uri.{type Uri}
 import gluri/internal/parser
-import gluri/internal/utils
+import gluri/internal/util
 
 /// Parses a string to the RFC3986 standard.
 /// `Error` is returned if it fails parsing.
@@ -97,7 +97,7 @@ pub fn to_string(uri: Uri) -> String {
 /// [RFC 3986](https://tools.ietf.org/html/rfc3986#section-5.2).
 ///
 pub fn merge(base: Uri, relative: Uri) -> Result(Uri, Nil) {
-  utils.merge(base, relative)
+  util.merge(base, relative)
 }
 
 /// Normalises the `Uri`
@@ -125,7 +125,7 @@ pub fn merge(base: Uri, relative: Uri) -> Result(Uri, Nil) {
 /// ```
 ///
 pub fn normalise(uri: Uri) -> Uri {
-  utils.normalise(uri)
+  util.normalise(uri)
 }
 
 /// Determines whether 2 Uris are equivalent, i.e. denote the same endpoint
@@ -162,7 +162,7 @@ pub fn are_equivalent(uri1: Uri, uri2: Uri) -> Bool {
 /// ```
 ///
 pub fn percent_decode(value: String) -> Result(String, Nil) {
-  utils.percent_decode(value)
+  util.percent_decode(value)
 }
 
 /// Encodes a string into a percent encoded string.
@@ -175,7 +175,7 @@ pub fn percent_decode(value: String) -> Result(String, Nil) {
 /// ```
 ///
 pub fn percent_encode(value: String) -> String {
-  utils.do_percent_encode(value)
+  util.do_percent_encode(value)
 }
 
 /// Encodes a list of key/value pairs into a URI query string
@@ -192,7 +192,7 @@ pub fn percent_encode(value: String) -> String {
 ///
 pub fn query_to_string(query: List(#(String, String))) -> String {
   list.map(query, fn(q) {
-    [utils.do_percent_encode(q.0), "=", utils.do_percent_encode(q.1)]
+    [util.do_percent_encode(q.0), "=", util.do_percent_encode(q.1)]
   })
   |> list.intersperse(["&"])
   |> list.flatten
@@ -239,7 +239,7 @@ pub fn origin(uri: Uri) -> Result(String, Nil) {
   case
     uri.scheme |> option.map(string.lowercase),
     uri.host |> option.map(string.lowercase),
-    utils.scheme_normalisation(uri.port, uri.scheme)
+    util.scheme_normalisation(uri.port, uri.scheme)
   {
     Some("http" as scheme), Some(host), port
     | Some("https" as scheme), Some(host), port
