@@ -30,6 +30,9 @@ pub fn parse_benchmark() {
     benchmark.Data("ipv6 short", "http://[2001:0db8::1]"),
   ]
 
+  // Test that all URIs parse successfully - this is because
+  // when this is pushed back into earlier versions of the codebase,
+  // some URIs may fail to parse due to a bug that has been fixed.
   list.each(data, fn(data) {
     let assert Ok(_) = uri.parse(data.data)
   })

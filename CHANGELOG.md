@@ -36,3 +36,8 @@
 ## 2.0.6
 
 - Fix [] wrapping for IPv6 and IPvFuture
+
+## 2.0.7
+
+- Rework IPv6 parsing for major performance improvement of shortened formats
+  - NB this is the first version of gluri that implements section specific parsing. Previously the parser followed the abnf spec which caused issues with IPv6 as the frequent backtracking caused performance issues.
