@@ -431,6 +431,29 @@ pub fn parse_hex_digit(str: String) -> Result(#(String, String), Nil) {
   }
 }
 
+pub fn parse_hex_digit_in_byte_range(
+  str: String,
+) -> Result(#(String, String), Nil) {
+  case str {
+    "8" as char <> tail
+    | "9" as char <> tail
+    | "a" as char <> tail
+    | "b" as char <> tail
+    | "c" as char <> tail
+    | "d" as char <> tail
+    | "e" as char <> tail
+    | "f" as char <> tail
+    | "A" as char <> tail
+    | "B" as char <> tail
+    | "C" as char <> tail
+    | "D" as char <> tail
+    | "E" as char <> tail
+    | "F" as char <> tail -> Ok(#(char, tail))
+
+    _ -> Error(Nil)
+  }
+}
+
 pub fn parse_hex_digits(
   str: String,
   min: Int,
@@ -462,219 +485,268 @@ fn do_percent_decode(
   case splitter.split(splitter, str) {
     #(before, "", "") -> Ok(acc <> before)
     #(before, "%", after) -> {
-      use #(hd1, rest) <- result.try(parse_hex_digit(after))
-      use #(hd2, rest) <- result.try(parse_hex_digit(rest))
-
-      use char <- result.try(int.base_parse(hd1 <> hd2, 16))
-      case int.bitwise_and(char, 128) {
-        0 -> {
-          use char <- result.try(string.utf_codepoint(char))
-          do_percent_decode(
-            splitter,
-            rest,
-            acc <> before <> string.from_utf_codepoints([char]),
-          )
-        }
-        _ -> {
-          case int.bitwise_and(char, 224) {
-            192 -> {
-              use #(char, rest) <- result.try(decode_2byte_utf(hd1 <> hd2, rest))
-
-              do_percent_decode(splitter, rest, acc <> before <> char)
-            }
-            _ -> {
-              case int.bitwise_and(char, 240) {
-                224 -> {
-                  use #(char, rest) <- result.try(decode_3byte_utf(
-                    hd1 <> hd2,
-                    rest,
-                  ))
-
-                  do_percent_decode(splitter, rest, acc <> before <> char)
-                }
-                _ -> {
-                  case int.bitwise_and(char, 248) {
-                    240 -> {
-                      use #(char, rest) <- result.try(decode_4byte_utf(
-                        hd1 <> hd2,
-                        rest,
-                      ))
-
-                      do_percent_decode(splitter, rest, acc <> before <> char)
-                    }
-                    _ -> Error(Nil)
-                  }
-                }
-              }
-            }
-          }
-        }
+      case parse_this_then(after, [parse_hex_digit, parse_hex_digit]) {
+        Ok(#(digits, rest)) ->
+          decode_hex_digits(digits, rest, acc <> before, splitter)
+        Error(_) -> Error(Nil)
       }
     }
     _ -> Error(Nil)
   }
 }
 
-pub fn decode_2byte_utf(
-  first_byte: String,
+fn decode_hex_digits(
+  digits: String,
   rest: String,
-) -> Result(#(String, String), Nil) {
-  use rest <- result.try(case rest {
-    "%" <> rest -> Ok(rest)
-    _ -> Error(Nil)
-  })
-  use #(hd3, rest) <- result.try(parse_hex_digit(rest))
-
-  use <- bool.guard(when: !within_byte_range(hd3), return: Error(Nil))
-
-  use #(hd4, rest) <- result.try(parse_hex_digit(rest))
-
-  use bytes <- result.try(int.base_parse(first_byte <> hd3 <> hd4, 16))
-
-  let assert <<
-    _:size(3),
-    x:size(3),
-    y1:size(2),
-    _:size(2),
-    y2:size(2),
-    z:size(4),
-  >> = <<bytes:size(16)>>
-  let assert <<i:size(16)>> = <<
-    0:size(5),
-    x:size(3),
-    y1:size(2),
-    y2:size(2),
-    z:size(4),
-  >>
-
-  use res <- result.try(string.utf_codepoint(i))
-
-  Ok(#(string.from_utf_codepoints([res]), rest))
+  acc: String,
+  splitter: splitter.Splitter,
+) {
+  case int.base_parse(digits, 16) {
+    Ok(char) -> {
+      case char >= 128 {
+        True -> {
+          case get_utf_decoder(char) {
+            Ok(f) -> {
+              case f(digits, rest) {
+                Ok(#(char, rest)) ->
+                  do_percent_decode(splitter, rest, acc <> char)
+                Error(_) -> Error(Nil)
+              }
+            }
+            Error(_) -> Error(Nil)
+          }
+        }
+        False -> {
+          case string.utf_codepoint(char) {
+            Ok(char) -> {
+              do_percent_decode(
+                splitter,
+                rest,
+                acc <> string.from_utf_codepoints([char]),
+              )
+            }
+            Error(_) -> Error(Nil)
+          }
+        }
+      }
+    }
+    Error(_) -> Error(Nil)
+  }
 }
 
-pub fn decode_3byte_utf(
+fn get_utf_decoder(
+  char: Int,
+) -> Result(fn(String, String) -> Result(#(String, String), Nil), Nil) {
+  case char >= 240 {
+    True -> Ok(decode_4byte_utf)
+    False -> {
+      case char >= 224 {
+        True -> Ok(decode_3byte_utf)
+        False -> {
+          case char >= 192 {
+            True -> Ok(decode_2byte_utf)
+            False -> Error(Nil)
+          }
+        }
+      }
+    }
+  }
+}
+
+fn parse_percent(str: String) {
+  case str {
+    "%" <> rest -> Ok(#("", rest))
+    _ -> Error(Nil)
+  }
+}
+
+fn decode_2byte_utf(
   first_byte: String,
   rest: String,
 ) -> Result(#(String, String), Nil) {
-  use rest <- result.try(case rest {
-    "%" <> rest -> Ok(rest)
+  first_byte |> echo
+  case
+    parse_this_then(rest, [
+      parse_percent,
+      parse_hex_digit_in_byte_range,
+      parse_hex_digit,
+    ])
+  {
+    Ok(#(second_byte, rest)) -> {
+      case int.base_parse(first_byte <> second_byte, 16) {
+        Ok(bytes) -> {
+          convert_2byte_utf(bytes, rest)
+        }
+        Error(_) -> Error(Nil)
+      }
+    }
+    Error(_) -> Error(Nil)
+  }
+}
+
+fn convert_2byte_utf(
+  bytes: Int,
+  rest: String,
+) -> Result(#(String, String), Nil) {
+  case <<bytes:size(16)>> {
+    <<_:size(3), x:size(3), y1:size(2), _:size(2), y2:size(2), z:size(4)>> -> {
+      case
+        <<
+          0:size(5),
+          x:size(3),
+          y1:size(2),
+          y2:size(2),
+          z:size(4),
+        >>
+      {
+        <<i:size(16)>> -> {
+          case string.utf_codepoint(i) {
+            Ok(res) -> Ok(#(string.from_utf_codepoints([res]), rest))
+            Error(_) -> Error(Nil)
+          }
+        }
+        _ -> Error(Nil)
+      }
+    }
     _ -> Error(Nil)
-  })
-  use #(hd3, rest) <- result.try(parse_hex_digit(rest))
+  }
+}
 
-  use <- bool.guard(when: !within_byte_range(hd3), return: Error(Nil))
+fn decode_3byte_utf(
+  first_byte: String,
+  rest: String,
+) -> Result(#(String, String), Nil) {
+  case
+    parse_this_then(rest, [
+      parse_percent,
+      parse_hex_digit_in_byte_range,
+      parse_hex_digit,
+      parse_percent,
+      parse_hex_digit_in_byte_range,
+      parse_hex_digit,
+    ])
+  {
+    Ok(#(second_bytes, rest)) -> {
+      case int.base_parse(first_byte <> second_bytes, 16) {
+        Ok(bytes) -> {
+          convert_3byte_utf(bytes, rest)
+        }
+        Error(_) -> Error(Nil)
+      }
+    }
+    Error(_) -> Error(Nil)
+  }
+}
 
-  use #(hd4, rest) <- result.try(parse_hex_digit(rest))
-  use rest <- result.try(case rest {
-    "%" <> rest -> Ok(rest)
+fn convert_3byte_utf(
+  bytes: Int,
+  rest: String,
+) -> Result(#(String, String), Nil) {
+  case <<bytes:size(24)>> {
+    <<
+      _:size(4),
+      w:size(4),
+      _:size(2),
+      x:size(4),
+      y1:size(2),
+      _:size(2),
+      y2:size(2),
+      z:size(4),
+    >> -> {
+      case
+        <<
+          w:size(4),
+          x:size(4),
+          y1:size(2),
+          y2:size(2),
+          z:size(4),
+        >>
+      {
+        <<i:size(16)>> -> {
+          case string.utf_codepoint(i) {
+            Ok(res) -> Ok(#(string.from_utf_codepoints([res]), rest))
+            Error(_) -> Error(Nil)
+          }
+        }
+        _ -> Error(Nil)
+      }
+    }
+
     _ -> Error(Nil)
-  })
-  use #(hd5, rest) <- result.try(parse_hex_digit(rest))
-
-  use <- bool.guard(when: !within_byte_range(hd5), return: Error(Nil))
-
-  use #(hd6, rest) <- result.try(parse_hex_digit(rest))
-
-  use bytes <- result.try(int.base_parse(
-    first_byte <> hd3 <> hd4 <> hd5 <> hd6,
-    16,
-  ))
-
-  let assert <<
-    _:size(4),
-    w:size(4),
-    _:size(2),
-    x:size(4),
-    y1:size(2),
-    _:size(2),
-    y2:size(2),
-    z:size(4),
-  >> = <<bytes:size(24)>>
-  let assert <<i:size(16)>> = <<
-    w:size(4),
-    x:size(4),
-    y1:size(2),
-    y2:size(2),
-    z:size(4),
-  >>
-
-  use res <- result.try(string.utf_codepoint(i))
-
-  Ok(#(string.from_utf_codepoints([res]), rest))
+  }
 }
 
 fn decode_4byte_utf(
   first_byte: String,
   rest: String,
 ) -> Result(#(String, String), Nil) {
-  use rest <- result.try(case rest {
-    "%" <> rest -> Ok(rest)
-    _ -> Error(Nil)
-  })
-  use #(hd3, rest) <- result.try(parse_hex_digit(rest))
-
-  use <- bool.guard(when: !within_byte_range(hd3), return: Error(Nil))
-
-  use #(hd4, rest) <- result.try(parse_hex_digit(rest))
-  use rest <- result.try(case rest {
-    "%" <> rest -> Ok(rest)
-    _ -> Error(Nil)
-  })
-  use #(hd5, rest) <- result.try(parse_hex_digit(rest))
-
-  use <- bool.guard(when: !within_byte_range(hd5), return: Error(Nil))
-
-  use #(hd6, rest) <- result.try(parse_hex_digit(rest))
-  use rest <- result.try(case rest {
-    "%" <> rest -> Ok(rest)
-    _ -> Error(Nil)
-  })
-  use #(hd7, rest) <- result.try(parse_hex_digit(rest))
-
-  use <- bool.guard(when: !within_byte_range(hd7), return: Error(Nil))
-
-  use #(hd8, rest) <- result.try(parse_hex_digit(rest))
-
-  use bytes <- result.try(int.base_parse(
-    first_byte <> hd3 <> hd4 <> hd5 <> hd6 <> hd7 <> hd8,
-    16,
-  ))
-
-  let assert <<
-    _:size(5),
-    u:size(1),
-    v1:size(2),
-    _:size(2),
-    v2:size(2),
-    w:size(4),
-    _:size(2),
-    x:size(4),
-    y1:size(2),
-    _:size(2),
-    y2:size(2),
-    z:size(4),
-  >> = <<bytes:size(32)>>
-  let assert <<i:size(24)>> = <<
-    0:size(3),
-    u:size(1),
-    v1:size(2),
-    v2:size(2),
-    w:size(4),
-    x:size(4),
-    y1:size(2),
-    y2:size(2),
-    z:size(4),
-  >>
-
-  use res <- result.try(string.utf_codepoint(i))
-
-  Ok(#(string.from_utf_codepoints([res]), rest))
+  case
+    parse_this_then(rest, [
+      parse_percent,
+      parse_hex_digit_in_byte_range,
+      parse_hex_digit,
+      parse_percent,
+      parse_hex_digit_in_byte_range,
+      parse_hex_digit,
+      parse_percent,
+      parse_hex_digit_in_byte_range,
+      parse_hex_digit,
+    ])
+  {
+    Ok(#(second_bytes, rest)) -> {
+      case int.base_parse(first_byte <> second_bytes, 16) {
+        Ok(bytes) -> {
+          convert_4byte_utf(bytes, rest)
+        }
+        Error(_) -> Error(Nil)
+      }
+    }
+    Error(_) -> Error(Nil)
+  }
 }
 
-fn within_byte_range(str: String) -> Bool {
-  case str {
-    "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" -> False
-    _ -> True
+fn convert_4byte_utf(
+  bytes: Int,
+  rest: String,
+) -> Result(#(String, String), Nil) {
+  case <<bytes:size(32)>> {
+    <<
+      _:size(5),
+      u:size(1),
+      v1:size(2),
+      _:size(2),
+      v2:size(2),
+      w:size(4),
+      _:size(2),
+      x:size(4),
+      y1:size(2),
+      _:size(2),
+      y2:size(2),
+      z:size(4),
+    >> -> {
+      case
+        <<
+          0:size(3),
+          u:size(1),
+          v1:size(2),
+          v2:size(2),
+          w:size(4),
+          x:size(4),
+          y1:size(2),
+          y2:size(2),
+          z:size(4),
+        >>
+      {
+        <<i:size(24)>> -> {
+          case string.utf_codepoint(i) {
+            Ok(res) -> Ok(#(string.from_utf_codepoints([res]), rest))
+            Error(_) -> Error(Nil)
+          }
+        }
+        _ -> Error(Nil)
+      }
+    }
+    _ -> Error(Nil)
   }
 }
 

@@ -164,14 +164,16 @@ fn parse_authority(str: String) -> Result(#(Uri, String), Nil) {
 
 fn parse_authority_part(str: String) -> Result(#(Uri, String), Nil) {
   let #(userinfo, rest) = parse_userinfo(str)
+  case parse_host(rest) {
+    Ok(#(host, rest)) -> {
+      let #(port, rest) = parse_port(rest)
 
-  use #(host, rest) <- result.try(parse_host(rest))
+      let #(path, rest) = parse_path_abempty(rest)
 
-  let #(port, rest) = parse_port(rest)
-
-  let #(path, rest) = parse_path_abempty(rest)
-
-  Ok(#(Uri(None, userinfo, Some(host), port, path, None, None), rest))
+      Ok(#(Uri(None, userinfo, Some(host), port, path, None, None), rest))
+    }
+    Error(_) -> Error(Nil)
+  }
 }
 
 // userinfo      = *( unreserved / pct-encoded / sub-delims / ":" )
@@ -233,12 +235,8 @@ fn parse_port(str: String) -> #(Option(Int), String) {
 fn parse_ip_literal(str: String) -> Result(#(String, String), Nil) {
   case str {
     "[" <> rest -> {
-      use #(ip, rest) <- result.try(util.try_parsers(
-        [parse_ipv6, parse_ipvfuture],
-        rest,
-      ))
-      case rest {
-        "]" <> rest -> Ok(#("[" <> ip <> "]", rest))
+      case util.try_parsers([parse_ipv6, parse_ipvfuture], rest) {
+        Ok(#(ip, "]" <> rest)) -> Ok(#("[" <> ip <> "]", rest))
         _ -> Error(Nil)
       }
     }
@@ -250,14 +248,9 @@ fn parse_ip_literal(str: String) -> Result(#(String, String), Nil) {
 fn parse_ipvfuture(str: String) -> Result(#(String, String), Nil) {
   case str {
     "v" <> rest -> {
-      use #(v, rest) <- result.try(util.parse_multiple(
-        rest,
-        util.parse_hex_digit,
-      ))
-
-      case rest {
-        "." <> rest -> {
-          use #(i, rest) <- result.try(
+      case util.parse_multiple(rest, util.parse_hex_digit) {
+        Ok(#(v, "." <> rest)) -> {
+          case
             util.parse_multiple(rest, fn(str) {
               util.try_parsers(
                 [
@@ -272,9 +265,11 @@ fn parse_ipvfuture(str: String) -> Result(#(String, String), Nil) {
                 ],
                 str,
               )
-            }),
-          )
-          Ok(#("v" <> v <> "." <> i, rest))
+            })
+          {
+            Ok(#(i, rest)) -> Ok(#("v" <> v <> "." <> i, rest))
+            _ -> Error(Nil)
+          }
         }
         _ -> Error(Nil)
       }
@@ -372,21 +367,21 @@ fn parse_h16(str: String) -> Result(#(String, String), Nil) {
 }
 
 fn parse_h16_pair(str: String) -> Result(#(String, String), Nil) {
-  use #(h16a, rest) <- result.try(parse_h16(str))
-  case rest {
-    ":" <> rest -> {
-      use #(h16b, rest) <- result.try(parse_h16(rest))
-      Ok(#(h16a <> ":" <> h16b, rest))
+  case parse_h16(str) {
+    Ok(#(h16a, ":" <> rest)) -> {
+      case parse_h16(rest) {
+        Ok(#(h16b, rest)) -> Ok(#(h16a <> ":" <> h16b, rest))
+        _ -> Error(Nil)
+      }
     }
     _ -> Error(Nil)
   }
 }
 
 fn parse_h16_colon(str: String) -> Result(#(String, String), Nil) {
-  use #(h16, rest) <- result.try(parse_h16(str))
-  case rest {
-    "::" <> _ -> Error(Nil)
-    ":" <> rest -> Ok(#(h16 <> ":", rest))
+  case parse_h16(str) {
+    Ok(#(_, "::" <> _)) -> Error(Nil)
+    Ok(#(h16, ":" <> rest)) -> Ok(#(h16 <> ":", rest))
     _ -> Error(Nil)
   }
 }
@@ -398,23 +393,22 @@ fn parse_ls32(str: String) -> Result(#(String, String), Nil) {
 
 // IPv4address   = dec-octet "." dec-octet "." dec-octet "." dec-octet
 fn parse_ipv4address(str: String) -> Result(#(String, String), Nil) {
-  use #(oct1, rest) <- result.try(parse_dec_octet(str))
-  use rest <- result.try(case rest {
-    "." <> rest -> Ok(rest)
+  util.parse_this_then(str, [
+    parse_dec_octet,
+    parse_dot,
+    parse_dec_octet,
+    parse_dot,
+    parse_dec_octet,
+    parse_dot,
+    parse_dec_octet,
+  ])
+}
+
+fn parse_dot(str: String) -> Result(#(String, String), Nil) {
+  case str {
+    "." <> rest -> Ok(#(".", rest))
     _ -> Error(Nil)
-  })
-  use #(oct2, rest) <- result.try(parse_dec_octet(rest))
-  use rest <- result.try(case rest {
-    "." <> rest -> Ok(rest)
-    _ -> Error(Nil)
-  })
-  use #(oct3, rest) <- result.try(parse_dec_octet(rest))
-  use rest <- result.try(case rest {
-    "." <> rest -> Ok(rest)
-    _ -> Error(Nil)
-  })
-  use #(oct4, rest) <- result.try(parse_dec_octet(rest))
-  Ok(#(oct1 <> "." <> oct2 <> "." <> oct3 <> "." <> oct4, rest))
+  }
 }
 
 // dec-octet     = DIGIT                 ; 0-9
@@ -552,20 +546,24 @@ fn parse_path_absolute(str: String) -> Result(#(Uri, String), Nil) {
 
 // path-noscheme = segment-nz-nc *( "/" segment )
 fn parse_path_noscheme(str: String) -> Result(#(Uri, String), Nil) {
-  use #(seg1, rest) <- result.try(do_parse_segment_nz_nc(str))
-
-  let #(segs, rest) = util.parse_optional(rest, parse_multiple_segments)
-
-  Ok(#(Uri(None, None, None, None, seg1 <> segs, None, None), rest))
+  case do_parse_segment_nz_nc(str) {
+    Ok(#(seg1, rest)) -> {
+      let #(segs, rest) = util.parse_optional(rest, parse_multiple_segments)
+      Ok(#(Uri(None, None, None, None, seg1 <> segs, None, None), rest))
+    }
+    Error(_) -> Error(Nil)
+  }
 }
 
 // path-rootless = segment-nz *( "/" segment )
 fn parse_path_rootless(str: String) -> Result(#(Uri, String), Nil) {
-  use #(seg1, rest) <- result.try(do_parse_segment_nz(str))
-
-  let #(segs, rest) = util.parse_optional(rest, parse_multiple_segments)
-
-  Ok(#(Uri(None, None, None, None, seg1 <> segs, None, None), rest))
+  case do_parse_segment_nz(str) {
+    Ok(#(seg1, rest)) -> {
+      let #(segs, rest) = util.parse_optional(rest, parse_multiple_segments)
+      Ok(#(Uri(None, None, None, None, seg1 <> segs, None, None), rest))
+    }
+    Error(_) -> Error(Nil)
+  }
 }
 
 // path-empty    = 0<pchar>
@@ -596,25 +594,29 @@ fn parse_multiple_segments(str: String) -> Result(#(String, String), Nil) {
 
 // segment-nz    = 1*pchar
 fn do_parse_segment_nz(str: String) -> Result(#(String, String), Nil) {
-  use #(char1, rest) <- result.try(do_parse_pchar(str))
-
-  use #(chars, rest) <- result.try(do_parse_segment(rest, do_parse_pchar, char1))
-
-  Ok(#(chars, rest))
+  case do_parse_pchar(str) {
+    Ok(#(char1, rest)) -> {
+      case do_parse_segment(rest, do_parse_pchar, char1) {
+        Ok(#(chars, rest)) -> Ok(#(chars, rest))
+        Error(_) -> Error(Nil)
+      }
+    }
+    Error(_) -> Error(Nil)
+  }
 }
 
 // segment-nz-nc = 1*( unreserved / pct-encoded / sub-delims / "@" )
 //              ; non-zero-length segment without any colon ":"
 fn do_parse_segment_nz_nc(str: String) -> Result(#(String, String), Nil) {
-  use #(char1, rest) <- result.try(do_parse_pchar_without_colon(str))
-
-  use #(chars, rest) <- result.try(do_parse_segment(
-    rest,
-    do_parse_pchar_without_colon,
-    char1,
-  ))
-
-  Ok(#(chars, rest))
+  case do_parse_pchar_without_colon(str) {
+    Ok(#(char1, rest)) -> {
+      case do_parse_segment(rest, do_parse_pchar_without_colon, char1) {
+        Ok(#(chars, rest)) -> Ok(#(chars, rest))
+        Error(_) -> Error(Nil)
+      }
+    }
+    Error(_) -> Error(Nil)
+  }
 }
 
 // pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
@@ -673,10 +675,12 @@ fn parse_query_fragment(str: String) -> Result(#(String, String), Nil) {
 fn parse_pct_encoded(str: String) -> Result(#(String, String), Nil) {
   case str {
     "%" <> rest -> {
-      use #(hex1, rest) <- result.try(util.parse_hex_digit(rest))
-      use #(hex2, rest) <- result.try(util.parse_hex_digit(rest))
-
-      Ok(#("%" <> hex1 <> hex2, rest))
+      case
+        util.parse_this_then(rest, [util.parse_hex_digit, util.parse_hex_digit])
+      {
+        Ok(#(hex, rest)) -> Ok(#("%" <> hex, rest))
+        Error(_) -> Error(Nil)
+      }
     }
     _ -> Error(Nil)
   }
@@ -846,13 +850,16 @@ fn do_parse_query_parts(
     #("", _, "") -> Ok(list.reverse(acc))
     #("", _, rest) -> do_parse_query_parts(splitter, rest, acc)
     #(pair, _, rest) -> {
-      use pair <- result.try(do_parse_query_pair(pair))
+      case do_parse_query_pair(pair) {
+        Ok(pair) -> {
+          let acc = [pair, ..acc]
 
-      let acc = [pair, ..acc]
-
-      case rest {
-        "" -> Ok(list.reverse(acc))
-        _ -> do_parse_query_parts(splitter, rest, acc)
+          case rest {
+            "" -> Ok(list.reverse(acc))
+            _ -> do_parse_query_parts(splitter, rest, acc)
+          }
+        }
+        Error(_) -> Error(Nil)
       }
     }
   }
@@ -863,8 +870,13 @@ fn do_parse_query_pair(pair: String) -> Result(#(String, String), Nil) {
     Error(_) -> #(pair, "")
     Ok(p) -> p
   }
-  use key <- result.try(util.percent_decode(string.replace(key, "+", " ")))
-  use val <- result.try(util.percent_decode(string.replace(val, "+", " ")))
-
-  Ok(#(key, val))
+  case util.percent_decode(string.replace(key, "+", " ")) {
+    Ok(key) -> {
+      case util.percent_decode(string.replace(val, "+", " ")) {
+        Ok(val) -> Ok(#(key, val))
+        Error(_) -> Error(Nil)
+      }
+    }
+    Error(_) -> Error(Nil)
+  }
 }
