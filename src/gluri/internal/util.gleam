@@ -570,7 +570,6 @@ fn decode_2byte_utf(
   first_byte: String,
   rest: String,
 ) -> Result(#(String, String), Nil) {
-  first_byte |> echo
   case
     parse_this_then(rest, [
       parse_percent,
