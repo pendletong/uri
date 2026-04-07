@@ -1356,6 +1356,10 @@ pub fn query_to_string_tests() {
       |> should.equal("el%201=123&el%202=321")
       uri.query_to_string([#("el€1", "12Σ3"), #("el𐀅2", "321")])
       |> should.equal("el%E2%82%AC1=12%CE%A33&el%F0%90%80%852=321")
+      uri.query_to_string([#("space x", "!\"#$%&'()*+,-./:;<=>?@A")])
+      |> should.equal(
+        "space%20x=!%22%23$%25%26'()*%2B%2C-.%2F%3A%3B%3C%3D%3E%3F%40A",
+      )
     }),
     it("empty parts", fn() {
       uri.query_to_string([#("el1", ""), #("el2", "")])

@@ -192,7 +192,11 @@ pub fn percent_encode(value: String) -> String {
 ///
 pub fn query_to_string(query: List(#(String, String))) -> String {
   list.map(query, fn(q) {
-    [util.do_percent_encode(q.0), "=", util.do_percent_encode(q.1)]
+    [
+      util.do_percent_encode_for_query(q.0),
+      "=",
+      util.do_percent_encode_for_query(q.1),
+    ]
   })
   |> list.intersperse(["&"])
   |> list.flatten

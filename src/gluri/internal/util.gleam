@@ -750,17 +750,36 @@ fn convert_4byte_utf(
   }
 }
 
-pub fn do_percent_encode(str: String) -> String {
+fn keep_char_in_query(codepoint: Int) -> Bool {
+  case is_unreserved_char(codepoint) {
+    True -> True
+    False -> {
+      case codepoint {
+        33 | 36 | 39 | 40 | 41 | 42 | 45 | 46 -> True
+        _ -> False
+      }
+    }
+  }
+}
+
+pub fn do_percent_encode_for_query(str: String) -> String {
   string.to_utf_codepoints(str)
   |> list.map(string.utf_codepoint_to_int)
-  |> list.map(encode_codepoint)
+  |> list.map(encode_codepoint(_, keep_char_in_query))
   |> string.concat
 }
 
-fn encode_codepoint(codepoint: Int) -> String {
+pub fn do_percent_encode(str: String) -> String {
+  string.to_utf_codepoints(str)
+  |> list.map(string.utf_codepoint_to_int)
+  |> list.map(encode_codepoint(_, is_unreserved_char))
+  |> string.concat
+}
+
+fn encode_codepoint(codepoint: Int, keep_char: fn(Int) -> Bool) -> String {
   case codepoint <= 127 {
     True -> {
-      case is_unreserved_char(codepoint) {
+      case keep_char(codepoint) {
         True -> {
           let assert Ok(cpnt) = string.utf_codepoint(codepoint)
           string.from_utf_codepoints([cpnt])
@@ -773,91 +792,96 @@ fn encode_codepoint(codepoint: Int) -> String {
     False -> {
       case codepoint <= 2047 {
         True -> {
-          let assert <<_:size(5), x:size(3), y1:size(2), y2:size(2), z:size(4)>> = <<
-            codepoint:size(16),
-          >>
-          let res = <<
-            6:size(3),
-            x:size(3),
-            y1:size(2),
-            2:size(2),
-            y2:size(2),
-            z:size(4),
-          >>
-          let assert <<b1:size(8), b2:size(8)>> = res
-          "%" <> int.to_base16(b1) <> "%" <> int.to_base16(b2)
+          encode_2byte_utf(codepoint)
         }
         False -> {
           case codepoint <= 65_535 {
             True -> {
-              let assert <<
-                w:size(4),
-                x:size(4),
-                y1:size(2),
-                y2:size(2),
-                z:size(4),
-              >> = <<
-                codepoint:size(16),
-              >>
-              let res = <<
-                14:size(4),
-                w:size(4),
-                2:size(2),
-                x:size(4),
-                y1:size(2),
-                2:size(2),
-                y2:size(2),
-                z:size(4),
-              >>
-              let assert <<b1:size(8), b2:size(8), b3:size(8)>> = res
-              "%"
-              <> int.to_base16(b1)
-              <> "%"
-              <> int.to_base16(b2)
-              <> "%"
-              <> int.to_base16(b3)
+              encode_3byte_utf(codepoint)
             }
             False -> {
-              let assert <<
-                _:size(3),
-                u:size(1),
-                v1:size(2),
-                v2:size(2),
-                w:size(4),
-                x:size(4),
-                y1:size(2),
-                y2:size(2),
-                z:size(4),
-              >> = <<codepoint:size(24)>>
-              let res = <<
-                30:size(5),
-                u:size(1),
-                v1:size(2),
-                2:size(2),
-                v2:size(2),
-                w:size(4),
-                2:size(2),
-                x:size(4),
-                y1:size(2),
-                2:size(2),
-                y2:size(2),
-                z:size(4),
-              >>
-
-              let assert <<b1:size(8), b2:size(8), b3:size(8), b4:size(8)>> =
-                res
-              "%"
-              <> int.to_base16(b1)
-              <> "%"
-              <> int.to_base16(b2)
-              <> "%"
-              <> int.to_base16(b3)
-              <> "%"
-              <> int.to_base16(b4)
+              encode_4byte_utf(codepoint)
             }
           }
         }
       }
     }
   }
+}
+
+fn encode_2byte_utf(codepoint: Int) -> String {
+  let assert <<_:size(5), x:size(3), y1:size(2), y2:size(2), z:size(4)>> = <<
+    codepoint:size(16),
+  >>
+  let res = <<
+    6:size(3),
+    x:size(3),
+    y1:size(2),
+    2:size(2),
+    y2:size(2),
+    z:size(4),
+  >>
+  let assert <<b1:size(8), b2:size(8)>> = res
+  "%" <> int.to_base16(b1) <> "%" <> int.to_base16(b2)
+}
+
+fn encode_3byte_utf(codepoint: Int) -> String {
+  let assert <<w:size(4), x:size(4), y1:size(2), y2:size(2), z:size(4)>> = <<
+    codepoint:size(16),
+  >>
+  let res = <<
+    14:size(4),
+    w:size(4),
+    2:size(2),
+    x:size(4),
+    y1:size(2),
+    2:size(2),
+    y2:size(2),
+    z:size(4),
+  >>
+  let assert <<b1:size(8), b2:size(8), b3:size(8)>> = res
+  "%"
+  <> int.to_base16(b1)
+  <> "%"
+  <> int.to_base16(b2)
+  <> "%"
+  <> int.to_base16(b3)
+}
+
+fn encode_4byte_utf(codepoint: Int) -> String {
+  let assert <<
+    _:size(3),
+    u:size(1),
+    v1:size(2),
+    v2:size(2),
+    w:size(4),
+    x:size(4),
+    y1:size(2),
+    y2:size(2),
+    z:size(4),
+  >> = <<codepoint:size(24)>>
+  let res = <<
+    30:size(5),
+    u:size(1),
+    v1:size(2),
+    2:size(2),
+    v2:size(2),
+    w:size(4),
+    2:size(2),
+    x:size(4),
+    y1:size(2),
+    2:size(2),
+    y2:size(2),
+    z:size(4),
+  >>
+
+  let assert <<b1:size(8), b2:size(8), b3:size(8), b4:size(8)>> = res
+  "%"
+  <> int.to_base16(b1)
+  <> "%"
+  <> int.to_base16(b2)
+  <> "%"
+  <> int.to_base16(b3)
+  <> "%"
+  <> int.to_base16(b4)
 }
