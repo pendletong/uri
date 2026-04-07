@@ -1113,6 +1113,32 @@ pub fn normalise_tests() {
           path: "/test",
         ),
       )
+      uri.parse("https://example.com:8043/test?p1=a%20b!")
+      |> should.be_ok
+      |> uri.normalise
+      |> should.equal(
+        Uri(
+          ..empty,
+          scheme: Some("https"),
+          host: Some("example.com"),
+          port: Some(8043),
+          path: "/test",
+          query: Some("p1=a%20b!"),
+        ),
+      )
+      uri.parse("https://example.com:8043/test?p1=%41")
+      |> should.be_ok
+      |> uri.normalise
+      |> should.equal(
+        Uri(
+          ..empty,
+          scheme: Some("https"),
+          host: Some("example.com"),
+          port: Some(8043),
+          path: "/test",
+          query: Some("p1=a"),
+        ),
+      )
     }),
     it("abnormal examples", fn() {
       let base = uri.parse("http://a/b/c/d;p?q") |> should.be_ok

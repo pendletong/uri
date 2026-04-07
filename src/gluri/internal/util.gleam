@@ -1,4 +1,3 @@
-import gleam/bool
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -26,48 +25,52 @@ pub fn get_port_for_scheme(scheme: String) -> Option(Int) {
 }
 
 pub fn merge(base: Uri, relative: Uri) -> Result(Uri, Nil) {
-  use <- bool.guard(when: base.scheme == None, return: Error(Nil))
-  let uri = case relative.scheme {
-    Some(_) -> {
-      Uri(..relative, path: remove_dot_segments(relative.path))
-    }
-    None -> {
-      let scheme = base.scheme
-      case relative.host, relative.port, relative.userinfo {
-        Some(_), _, _ | _, Some(_), _ | _, _, Some(_) -> {
-          Uri(..relative, scheme:, path: remove_dot_segments(relative.path))
+  case base.scheme {
+    None -> Error(Nil)
+    _ -> {
+      let uri = case relative.scheme {
+        Some(_) -> {
+          Uri(..relative, path: remove_dot_segments(relative.path))
         }
-        _, _, _ -> {
-          case relative.path {
-            "" -> {
-              let query = case relative.query {
-                Some(_) -> relative.query
-                _ -> base.query
+        None -> {
+          let scheme = base.scheme
+          case relative.host, relative.port, relative.userinfo {
+            Some(_), _, _ | _, Some(_), _ | _, _, Some(_) -> {
+              Uri(..relative, scheme:, path: remove_dot_segments(relative.path))
+            }
+            _, _, _ -> {
+              case relative.path {
+                "" -> {
+                  let query = case relative.query {
+                    Some(_) -> relative.query
+                    _ -> base.query
+                  }
+                  Uri(..base, query:)
+                }
+                "/" <> _ -> {
+                  Uri(
+                    ..base,
+                    path: remove_dot_segments(relative.path),
+                    query: relative.query,
+                  )
+                }
+                _ -> {
+                  let path = merge_paths(base, relative)
+                  Uri(
+                    ..base,
+                    path: remove_dot_segments(path),
+                    query: relative.query,
+                  )
+                }
               }
-              Uri(..base, query:)
-            }
-            "/" <> _ -> {
-              Uri(
-                ..base,
-                path: remove_dot_segments(relative.path),
-                query: relative.query,
-              )
-            }
-            _ -> {
-              let path = merge_paths(base, relative)
-              Uri(
-                ..base,
-                path: remove_dot_segments(path),
-                query: relative.query,
-              )
             }
           }
         }
       }
+
+      Ok(Uri(..uri, fragment: relative.fragment))
     }
   }
-
-  Uri(..uri, fragment: relative.fragment) |> Ok
 }
 
 fn has_authority(uri: Uri) -> Bool {
@@ -328,8 +331,11 @@ fn do_remove_dot_segments(path: String, acc: String) -> String {
     "/.." -> remove_segment(acc) <> "/"
     "." | ".." | "" -> acc <> path
     _ -> {
-      let assert Ok(#(char, rest)) = string.pop_grapheme(path)
-      do_remove_dot_segments(rest, acc <> char)
+      // pop_grapheme shouldn't fail here since we're processing a non-empty path
+      case string.pop_grapheme(path) {
+        Ok(#(char, rest)) -> do_remove_dot_segments(rest, acc <> char)
+        _ -> ""
+      }
     }
   }
 }
@@ -355,46 +361,46 @@ fn normalise_percent(percent_splitter: Splitter, str: String) -> String {
 fn do_normalise_percent(
   percent_splitter: Splitter,
   str: String,
-  res: String,
+  acc: String,
 ) -> String {
   let #(before, pc, after) = splitter.split(percent_splitter, str)
   case pc {
-    "" -> res <> before
+    "" -> acc <> before
     _ -> {
       case after {
-        "" -> res <> before
+        "" -> acc <> before
         _ -> {
-          let #(pc_val, rest) = case parse_hex_digit(after) {
-            Ok(#(pc1, rest)) -> {
-              case parse_hex_digit(rest) {
-                Ok(#(pc2, rest)) -> {
-                  let hex = pc1 <> pc2
-                  let v = unescape_percent(hex)
-                  case v == hex {
-                    True -> #("%" <> string.uppercase(v), rest)
-                    False -> #(string.lowercase(v), rest)
-                  }
-                }
-                Error(_) -> #("", after)
+          let #(pc_val, rest) = case
+            parse_this_then(after, [parse_hex_digit, parse_hex_digit])
+          {
+            Ok(#(hex, rest)) -> {
+              let v = unescape_percent_for_unreserved_char(hex)
+              case v == hex {
+                True -> #("%" <> string.uppercase(v), rest)
+                False -> #(string.lowercase(v), rest)
               }
             }
             Error(_) -> #("", after)
           }
-          do_normalise_percent(percent_splitter, rest, res <> before <> pc_val)
+          do_normalise_percent(percent_splitter, rest, acc <> before <> pc_val)
         }
       }
     }
   }
 }
 
-fn unescape_percent(str: String) -> String {
+fn unescape_percent_for_unreserved_char(str: String) -> String {
   case int.base_parse(str, 16) {
     Error(_) -> str
     Ok(ascii) -> {
       case is_unreserved_char(ascii) {
         True -> {
-          let assert Ok(cpnt) = string.utf_codepoint(ascii)
-          string.from_utf_codepoints([cpnt])
+          // This should never fail since we're processing a valid percent-encoded string
+          // that has been validated to be a valid unreserved character
+          case string.utf_codepoint(ascii) {
+            Ok(cpnt) -> string.from_utf_codepoints([cpnt])
+            _ -> str
+          }
         }
         False -> str
       }
@@ -781,8 +787,11 @@ fn encode_codepoint(codepoint: Int, keep_char: fn(Int) -> Bool) -> String {
     True -> {
       case keep_char(codepoint) {
         True -> {
-          let assert Ok(cpnt) = string.utf_codepoint(codepoint)
-          string.from_utf_codepoints([cpnt])
+          // This shouldn't fail but if it does, return a percent-encoded fallback
+          case string.utf_codepoint(codepoint) {
+            Ok(cpnt) -> string.from_utf_codepoints([cpnt])
+            _ -> "%" <> string.pad_start(int.to_base16(codepoint), 2, "0")
+          }
         }
         False -> {
           "%" <> string.pad_start(int.to_base16(codepoint), 2, "0")
@@ -809,6 +818,9 @@ fn encode_codepoint(codepoint: Int, keep_char: fn(Int) -> Bool) -> String {
   }
 }
 
+// The following functions encode UTF-8 codepoints into percent-encoded strings.
+// They utilise assert but should never panic as the sum of the sizes always
+// matches the size of the codepoint.
 fn encode_2byte_utf(codepoint: Int) -> String {
   let assert <<_:size(5), x:size(3), y1:size(2), y2:size(2), z:size(4)>> = <<
     codepoint:size(16),
