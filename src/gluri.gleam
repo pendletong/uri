@@ -1,4 +1,3 @@
-import gleam/bool
 import gleam/int
 import gleam/list
 import gleam/option.{Some}
@@ -142,12 +141,15 @@ pub fn normalise(uri: Uri) -> Uri {
 /// ```
 ///
 pub fn are_equivalent(uri1: Uri, uri2: Uri) -> Bool {
-  use <- bool.guard(when: uri1 == uri2, return: True)
+  case uri1 == uri2 {
+    True -> True
+    False -> {
+      let uri1 = normalise(uri1)
+      let uri2 = normalise(uri2)
 
-  let uri1 = normalise(uri1)
-  let uri2 = normalise(uri2)
-
-  uri1 == uri2
+      uri1 == uri2
+    }
+  }
 }
 
 /// Decodes a percent encoded string.

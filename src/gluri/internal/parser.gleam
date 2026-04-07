@@ -1,7 +1,6 @@
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import gleam/result
 import gleam/string
 import gleam/uri.{type Uri, Uri, empty}
 import gluri/internal/util
@@ -13,27 +12,33 @@ import splitter
 pub fn parse(uri: String) -> Result(Uri, Nil) {
   case parse_scheme(uri) {
     Ok(#(scheme, rest)) -> {
-      use #(rel_part, rest) <- result.try(parse_hier_part(rest))
+      case parse_hier_part(rest) {
+        Ok(#(rel_part, rest)) -> {
+          let #(query, rest) = parse_query(rest)
 
-      let #(query, rest) = parse_query(rest)
+          let #(fragment, rest) = parse_fragment(rest)
 
-      let #(fragment, rest) = parse_fragment(rest)
-
-      case rest {
-        "" -> Ok(util.combine_uris([scheme, rel_part, query, fragment]))
-        _ -> Error(Nil)
+          case rest {
+            "" -> Ok(util.combine_uris([scheme, rel_part, query, fragment]))
+            _ -> Error(Nil)
+          }
+        }
+        Error(_) -> Error(Nil)
       }
     }
     Error(_) -> {
-      use #(rel_part, rest) <- result.try(parse_relative_part(uri))
+      case parse_relative_part(uri) {
+        Ok(#(rel_part, rest)) -> {
+          let #(query, rest) = parse_query(rest)
 
-      let #(query, rest) = parse_query(rest)
+          let #(fragment, rest) = parse_fragment(rest)
 
-      let #(fragment, rest) = parse_fragment(rest)
-
-      case rest {
-        "" -> Ok(util.combine_uris([rel_part, query, fragment]))
-        _ -> Error(Nil)
+          case rest {
+            "" -> Ok(util.combine_uris([rel_part, query, fragment]))
+            _ -> Error(Nil)
+          }
+        }
+        Error(_) -> Error(Nil)
       }
     }
   }
@@ -133,21 +138,25 @@ fn do_parse_scheme(
     ":" <> rest -> Ok(#(scheme, rest))
     "" -> Error(Nil)
     _ -> {
-      use #(part, rest) <- result.try(util.try_parsers(
-        [
-          parse_alpha,
-          parse_digit,
-          fn(str) {
-            case str {
-              "+" as l <> rest | "-" as l <> rest | "." as l <> rest ->
-                Ok(#(l, rest))
-              _ -> Error(Nil)
-            }
-          },
-        ],
-        str,
-      ))
-      do_parse_scheme(rest, scheme <> part)
+      case
+        util.try_parsers(
+          [
+            parse_alpha,
+            parse_digit,
+            fn(str) {
+              case str {
+                "+" as l <> rest | "-" as l <> rest | "." as l <> rest ->
+                  Ok(#(l, rest))
+                _ -> Error(Nil)
+              }
+            },
+          ],
+          str,
+        )
+      {
+        Ok(#(part, rest)) -> do_parse_scheme(rest, scheme <> part)
+        Error(_) -> Error(Nil)
+      }
     }
   }
 }
