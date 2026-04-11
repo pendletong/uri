@@ -589,10 +589,7 @@ fn decode_2byte_utf(
   }
 }
 
-fn convert_2byte_utf(
-  bytes: Int,
-  rest: String,
-) -> Result(#(String, String), Nil) {
+fn convert_2byte_utf(bytes: Int, rest: String) -> Result(#(String, String), Nil) {
   case <<bytes:size(16)>> {
     <<_:size(3), x:size(3), y1:size(2), _:size(2), y2:size(2), z:size(4)>> -> {
       case
@@ -643,10 +640,7 @@ fn decode_3byte_utf(
   }
 }
 
-fn convert_3byte_utf(
-  bytes: Int,
-  rest: String,
-) -> Result(#(String, String), Nil) {
+fn convert_3byte_utf(bytes: Int, rest: String) -> Result(#(String, String), Nil) {
   case <<bytes:size(24)>> {
     <<
       _:size(4),
@@ -710,10 +704,7 @@ fn decode_4byte_utf(
   }
 }
 
-fn convert_4byte_utf(
-  bytes: Int,
-  rest: String,
-) -> Result(#(String, String), Nil) {
+fn convert_4byte_utf(bytes: Int, rest: String) -> Result(#(String, String), Nil) {
   case <<bytes:size(32)>> {
     <<
       _:size(5),

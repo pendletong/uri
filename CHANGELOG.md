@@ -40,6 +40,6 @@
 ## 2.0.7
 
 - Rework IPv6 parsing for major performance improvement of shortened formats
-  - NB this is the first version of gluri that implements section specific parsing. Previously the parser followed the abnf spec which caused issues with IPv6 as the frequent backtracking caused performance issues.
+  - NB this is the first version of gluri that implements section specific parsing. Previously the parser strictly followed the abnf spec which caused issues with IPv6 as the frequent backtracking caused performance issues.
 - Modify query_to_string to reduce the number of characters that are percent encoded
 - Reworked internals to avoid asserts and use <-
